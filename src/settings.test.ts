@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { autoRings, type MandalaParams } from "./render";
-import { settingsFromText, settingsToText } from "./settings";
+import { settingsFromText, settingsToLink, settingsToText } from "./settings";
 
 const params: MandalaParams = {
   symmetry: 12,
@@ -38,5 +38,40 @@ describe("settings text", () => {
     expect(result?.symmetry).toBe(8);
     expect(result?.center).toBe("flowerOfLife");
     expect(result?.rings).toEqual(params.rings);
+  });
+
+  test("a link restores every setting", () => {
+    const changed: MandalaParams = { ...params, symmetry: 9, center: "sriYantra", rings: [{ motif: "flowerBand", repeat: 4 }], minDetail: false };
+    const link = settingsToLink(changed, "http://brianbugh.me/mandala-effect/#old");
+    expect(link).toMatch(/^http:\/\/brianbugh\.me\/mandala-effect\/#1[A-Za-z0-9_-]+$/);
+    expect(settingsFromText(link, params)).toEqual(changed);
+  });
+
+  test("a short code restores every setting at the ends of each range", () => {
+    const changed: MandalaParams = {
+      ...params,
+      symmetry: 24,
+      spacing: "even",
+      center: "cymatics",
+      chladniN: 12,
+      chladniM: 1,
+      seed: 99999,
+      lineWeight: 4,
+      lineContrast: 2,
+      rings: Array.from({ length: 8 }, (_, i) => ({ motif: i % 2 ? "cymatics" : "lotus", repeat: i % 2 ? 12 : 1 })),
+      petalTip: "round",
+      detail: 2,
+      waveDepth: 0.5,
+      bindu: false,
+      borderSpacing: false,
+      minDetail: true,
+    };
+    const link = settingsToLink(changed, "http://brianbugh.me/mandala-effect/");
+    expect(link.length).toBeLessThan(70);
+    expect(settingsFromText(link, params)).toEqual(changed);
+  });
+
+  test("a code with an unknown version is rejected", () => {
+    expect(settingsFromText("http://brianbugh.me/mandala-effect/#9AAAA", params)).toBeNull();
   });
 });

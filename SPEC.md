@@ -60,7 +60,7 @@ The variation seed combines the Expression number with the name and birthdate te
 4. Cymatics lines are always traced on the finer grid and drawn as Catmull-Rom curves. The checkbox for this was removed because the unsmoothed lines looked the same at screen and print size.
 5. Shuffle everything (top of the controls panel): picks every setting at random, including every center, every ring pattern, every slider within its range, and every checkbox.
 6. Repeat counts: each ring's Repeats dropdown disables the counts at which its pattern is not legible in that ring. When the pattern, symmetry, ring spacing, or number of rings changes, or settings are pasted, a ring whose count is no longer legible changes to the closest legible count.
-7. Settings: "Copy" puts every setting on the clipboard as JSON text, and "Paste" reads that text and redraws the mandala. Invalid fields in pasted text keep their current values.
+7. Settings: "Copy" puts a link to the page on the clipboard, ending in a short code: a version character, then every setting packed into bits and written in URL-safe base64 (`src/settings.ts`). Opening the link shows the page with those settings. A new code layout gets a new version character, and the page keeps reading earlier versions. "Paste" reads a link, a code, or the settings text from earlier copies. The Variation number is limited to 0 to 99999 so that it fits in the code.
 8. Export SVG (vector, any print size) and PNG (3000 × 3000 pixels).
 
 ### Technology

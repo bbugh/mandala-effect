@@ -4,7 +4,7 @@ import { type Detail, legibleRepeats, MAX_REPEAT, MOTIF_LABELS, MOTIF_NAMES, typ
 import { ringRadii } from "./geometry/rings";
 import type { Spacing } from "./geometry/rings";
 import { downloadPng, downloadSvg } from "./export";
-import { settingsFromText, settingsToText } from "./settings";
+import { MAX_SEED, settingsFromText, settingsToLink } from "./settings";
 import { autoRings, fitRepeats, type MandalaParams, RADIUS, renderMandala, type RingSpec } from "./render";
 
 const MAX_RINGS = 8;
@@ -155,7 +155,7 @@ for (const field of ranges) {
   $<HTMLInputElement>(field).addEventListener("input", (event) => {
     const value = Number((event.target as HTMLInputElement).value);
     if (!Number.isFinite(value)) return;
-    if (field === "seed") return reseed(Math.max(0, Math.floor(value)));
+    if (field === "seed") return reseed(Math.min(MAX_SEED, Math.max(0, Math.floor(value))));
     params[field] = value;
     draw();
   });
@@ -237,7 +237,7 @@ let copyTimer = 0;
 
 copyButton.addEventListener("click", () => {
   settingsStatus.textContent = "";
-  navigator.clipboard.writeText(settingsToText(params));
+  navigator.clipboard.writeText(settingsToLink(params, location.href));
   copyButton.textContent = "Copied";
   clearTimeout(copyTimer);
   copyTimer = window.setTimeout(() => (copyButton.textContent = "Copy"), 1200);
@@ -248,7 +248,7 @@ $<HTMLButtonElement>("paste-settings").addEventListener("click", async () => {
   try {
     text = await navigator.clipboard.readText();
   } catch {
-    text = prompt("Paste the settings text:");
+    text = prompt("Paste the mandala link:");
   }
   settingsStatus.textContent = "";
   if (text === null) return;
@@ -270,5 +270,17 @@ $<HTMLButtonElement>("export-svg").addEventListener("click", () => downloadSvg(c
 $<HTMLButtonElement>("export-png").addEventListener("click", () => {
   downloadPng(currentSvg, filename("png")).catch((error) => alert(`PNG export failed: ${error.message}`));
 });
+
+// A link made by Copy opens the page with its settings. A link pasted into the address bar while the
+// page is open changes only the part after "#", so the page also listens for that change.
+function applyLink() {
+  const linked = location.hash ? settingsFromText(location.href, params) : null;
+  if (!linked) return false;
+  Object.assign(params, linked);
+  stash = [];
+  return true;
+}
+window.addEventListener("hashchange", () => applyLink() && draw());
+applyLink();
 
 draw();
