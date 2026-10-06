@@ -14,7 +14,7 @@ describe("fitRepeats", () => {
       { motif: "dots" as const, repeat: 3 },
     ];
     const fitted = fitRepeats(rings, 10, "golden");
-    expect(fitted[3]).toEqual({ motif: "flowerBand", repeat: 5 });
+    expect(fitted[3]).toEqual({ motif: "flowerBand", repeat: 7 });
     expect(fitted[0]).toBe(rings[0]);
   });
 

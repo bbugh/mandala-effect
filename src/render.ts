@@ -100,7 +100,8 @@ export function renderMandala(params: MandalaParams): string {
       r2: radii[i + 1] - patternGap,
       count: params.symmetry * spec.repeat,
       offset: i % 2 === 1,
-      clip: [radii[i] + borderGap / 2, radii[i + 1] - borderGap / 2],
+      // The inner edges of the border lines' strokes.
+      clip: [radii[i] + borderGap / 2 + borderWeight / 2, radii[i + 1] - borderGap / 2 - borderWeight / 2],
       id: `ring-${i}`,
       style: params,
     });

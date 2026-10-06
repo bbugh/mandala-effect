@@ -63,7 +63,7 @@ export interface RingContext {
   count: number;
   /** Rotates every other ring by half a repeat so neighboring rings interleave. */
   offset: boolean;
-  /** Inner and outer radius of the ring borders. Patterns that are cut off (Flower of Life band) end here. */
+  /** Inner edges of the ring's border lines. Patterns that are cut off (Flower of Life band) end here. */
   clip: [number, number];
   id: string;
   style: RingStyle;
@@ -78,7 +78,7 @@ const TAU = Math.PI * 2;
 const LEGIBLE_ARC: Record<MotifName, [number, number]> = {
   lotus: [0.45, 1.6],
   scallops: [0.6, 2.2],
-  flowerBand: [0.35, 0.7],
+  flowerBand: [0.42, 0.5],
   lattice: [0.5, 1.8],
   roseBraid: [0.8, 2.5],
   dots: [0.5, 1.5],
@@ -178,19 +178,28 @@ function scallops({ r1, r2, count, offset, style }: RingContext): MotifOutput {
   return out.output();
 }
 
-/** Overlapping circles whose radius equals the distance between neighboring centers, as in the Flower of Life. */
-function flowerBand({ r1, r2, count, offset, id, clip, style }: RingContext): MotifOutput {
-  const out = collector(style);
+/**
+ * The overlapping circles grid of the Flower of Life (docs/vendor/wikipedia-overlapping_circles_grid.html),
+ * repeated around the ring and masked by the ring. Circle centers are on a hexagonal grid with 1 row on
+ * the ring's center line, rows sqrt(3)/2 × spacing apart, and alternate rows shifted by half a step.
+ * Every circle's radius equals the spacing. The grid continues past the ring on both sides, and the
+ * mask cuts it off at the inner edges of the border lines. The detail setting does not apply.
+ */
+function flowerBand({ r1, r2, count, offset, id, clip }: RingContext): MotifOutput {
   const mid = (r1 + r2) / 2;
-  const radius = 2 * mid * Math.sin(Math.PI / count);
-  const shift = offset ? Math.PI / count : 0;
-  for (let i = 0; i < count; i++) {
-    const center = polar(mid, (i * TAU) / count + shift);
-    out.main.push(circle(...center, radius));
-    if (style.detail >= 1 && out.large(radius * 0.5)) out.detail.push(circle(...center, radius * 0.5));
-    if (style.detail >= 2) out.dot(center, radius * 0.12);
+  const step = TAU / count;
+  const spacing = 2 * mid * Math.sin(step / 2);
+  const rowGap = (spacing * Math.sqrt(3)) / 2;
+  // Enough rows that the grid covers the whole ring.
+  const rows = Math.ceil(((clip[1] - clip[0]) / 2 + spacing) / rowGap);
+  const circles: string[] = [];
+  for (let k = -rows; k <= rows; k++) {
+    const rowRadius = mid + k * rowGap;
+    if (rowRadius <= 0) continue;
+    const shift = (offset ? step / 2 : 0) + (Math.abs(k) % 2 === 1 ? step / 2 : 0);
+    for (let i = 0; i < count; i++) circles.push(circle(...polar(rowRadius, i * step + shift), spacing));
   }
-  return out.output((markup, part) => (markup ? clipToRing(`${id}-${part}`, clip[0], clip[1], markup) : ""));
+  return { main: clipToRing(`${id}-main`, clip[0], clip[1], circles.join("")), detail: "" };
 }
 
 function lattice({ r1, r2, count, offset, style }: RingContext): MotifOutput {

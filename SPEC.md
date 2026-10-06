@@ -44,7 +44,7 @@ The variation seed combines the Expression number with the name and birthdate te
 4. **Ring motifs.** The variation seed picks a motif and a repeat count for each ring. In the controls panel, each ring has its own motif menu and repeat menu (symmetry × 1 to 12). Global ring styles: petal and arch tips (pointed or round), detail level (outline, inner outline, inner outline and dots), and rose braid wave depth. Motifs:
    - Lotus petals
    - Scallops (arches between neighboring petals)
-   - Flower of Life band (overlapping circles clipped to the ring)
+   - Flower of Life band: the overlapping circles grid repeated around the ring and masked by the ring, so it is cut off at the inner edges of the border lines. 1 row of circle centers is on the ring's center line, and every circle's radius equals the grid spacing. Spacing is 0.42 to 0.5 times the ring width (design choice). Source: docs/vendor/wikipedia-overlapping_circles_grid.html. The Detail setting does not apply to it.
    - Diamond lattice (2 offset zigzags)
    - Rose curve braid (`r = r₀ + a·cos(kθ)` and its phase-shifted copy)
    - Dot ring
