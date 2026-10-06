@@ -13,12 +13,7 @@
       <aside class="panel">
         <h1>Mandala Effect</h1>
 
-        <div class="tabs" role="tablist">
-          <button id="tab-design" role="tab" type="button" aria-selected="true" aria-controls="panel-design">Design</button>
-          <button id="tab-pattern" role="tab" type="button" aria-selected="false" aria-controls="panel-pattern">Pattern</button>
-        </div>
-
-        <div id="panel-design" role="tabpanel" aria-labelledby="tab-design">
+        <div id="panel-design">
           <button id="shuffle-all" class="wide" type="button">Shuffle everything</button>
           <section>
             <h2>Overall</h2>
@@ -93,15 +88,6 @@
               <label>Variation <input id="seed" type="number" min="0" step="1" /></label>
               <button id="shuffle" type="button">Shuffle rings</button>
             </div>
-          </section>
-        </div>
-
-        <div id="panel-pattern" role="tabpanel" aria-labelledby="tab-pattern" hidden>
-          <section>
-            <label>Full name <input id="name" type="text" autocomplete="off" /></label>
-            <label>Birthdate <input id="birthdate" type="date" /></label>
-            <button id="generate" class="wide" type="button" disabled>Generate</button>
-            <dl id="numbers" class="numbers"></dl>
           </section>
         </div>
 

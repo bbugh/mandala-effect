@@ -3,8 +3,6 @@ import { CENTER_LABELS, type CenterName, DEFAULT_CENTERS } from "./geometry/cent
 import { type Detail, MAX_REPEAT, MOTIF_LABELS, MOTIF_NAMES, type MotifName, type PetalTip } from "./geometry/motifs";
 import type { Spacing } from "./geometry/rings";
 import { downloadPng, downloadSvg } from "./export";
-import { type NumerologyProfile, parseBirthDate } from "./numerology";
-import { personalMandala } from "./personal";
 import { settingsFromText, settingsToText } from "./settings";
 import { autoRings, type MandalaParams, renderMandala, type RingSpec } from "./render";
 
@@ -41,22 +39,6 @@ const ringRows = $<HTMLTableSectionElement>("ring-rows");
 
 for (const [value, label] of Object.entries(CENTER_LABELS)) {
   centerSelect.add(new Option(label, value));
-}
-
-// Tabs
-
-const tabs = [
-  { tab: $<HTMLButtonElement>("tab-design"), panel: $<HTMLDivElement>("panel-design") },
-  { tab: $<HTMLButtonElement>("tab-pattern"), panel: $<HTMLDivElement>("panel-pattern") },
-];
-for (const { tab } of tabs) {
-  tab.addEventListener("click", () => {
-    for (const other of tabs) {
-      const selected = other.tab === tab;
-      other.tab.setAttribute("aria-selected", String(selected));
-      other.panel.hidden = !selected;
-    }
-  });
 }
 
 // Ring table: always MAX_RINGS rows; rows beyond the ring count are disabled.
@@ -224,50 +206,6 @@ $<HTMLButtonElement>("shuffle-all").addEventListener("click", () => {
   draw();
 });
 
-// Pattern tab
-
-const nameInput = $<HTMLInputElement>("name");
-const birthInput = $<HTMLInputElement>("birthdate");
-const generateButton = $<HTMLButtonElement>("generate");
-const numbersList = $<HTMLDListElement>("numbers");
-
-function updateGenerateButton() {
-  generateButton.disabled = !nameInput.value.trim() || !parseBirthDate(birthInput.value);
-}
-nameInput.addEventListener("input", updateGenerateButton);
-birthInput.addEventListener("input", updateGenerateButton);
-
-function showNumbers(numbers: NumerologyProfile | null) {
-  const outer = params.rings[params.rings.length - 1];
-  const rowsData: [string, number | undefined, string][] = [
-    ["Life Path", numbers?.lifePath, `${params.symmetry}-fold symmetry`],
-    ["Birthday", numbers?.birthday, `${params.rings.length} rings`],
-    ["Expression", numbers?.expression, `ring patterns, outer ring ${params.symmetry * outer.repeat} repeats`],
-    ["Soul Urge", numbers?.soulUrge, `cymatics n = ${params.chladniN}`],
-    ["Personality", numbers?.personality, `cymatics m = ${params.chladniM}`],
-  ];
-  numbersList.replaceChildren(
-    ...rowsData.flatMap(([label, value, effect]) => {
-      const term = document.createElement("dt");
-      term.textContent = `${label} ${value ?? "–"}`;
-      const detail = document.createElement("dd");
-      detail.textContent = numbers ? effect : "–";
-      return [term, detail];
-    }),
-  );
-}
-
-generateButton.addEventListener("click", () => {
-  const birth = parseBirthDate(birthInput.value);
-  const name = nameInput.value.trim();
-  if (!birth || !name) return;
-  const result = personalMandala(name, birth, birthInput.value, params);
-  Object.assign(params, result.params);
-  stash = [];
-  draw();
-  showNumbers(result.numbers);
-});
-
 // Settings copy and paste
 
 const settingsStatus = $<HTMLParagraphElement>("settings-status");
@@ -311,5 +249,4 @@ $<HTMLButtonElement>("export-png").addEventListener("click", () => {
   downloadPng(currentSvg, filename("png")).catch((error) => alert(`PNG export failed: ${error.message}`));
 });
 
-showNumbers(null);
 draw();

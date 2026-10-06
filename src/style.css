@@ -148,20 +148,10 @@ button:active:not(:disabled) {
   background: #5a2f19;
 }
 
-.tabs button:hover:not(:disabled),
 .seed-row button:hover:not(:disabled) {
   background: var(--paper);
-  color: var(--ink);
-}
-
-.seed-row button:hover:not(:disabled) {
   border-color: var(--accent);
   color: var(--accent);
-}
-
-.tabs button[aria-selected="true"]:hover {
-  background: var(--panel);
-  border-color: var(--line);
 }
 
 button:disabled {
@@ -190,28 +180,6 @@ select:disabled {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
-}
-
-.tabs {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 4px;
-  padding: 4px;
-  margin-bottom: 8px;
-  background: var(--paper);
-  border-radius: 8px;
-}
-
-.tabs button {
-  background: transparent;
-  border-color: transparent;
-  color: var(--muted);
-}
-
-.tabs button[aria-selected="true"] {
-  background: var(--panel);
-  border-color: var(--line);
-  color: var(--ink);
 }
 
 .ring-table {
@@ -262,24 +230,6 @@ select:disabled {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-}
-
-.numbers {
-  display: grid;
-  min-height: 9em;
-  grid-template-columns: auto 1fr;
-  gap: 4px 14px;
-  margin: 16px 0 0;
-  font-size: 14px;
-}
-
-.numbers dt {
-  font-weight: 500;
-}
-
-.numbers dd {
-  margin: 0;
-  color: var(--muted);
 }
 
 .canvas {
