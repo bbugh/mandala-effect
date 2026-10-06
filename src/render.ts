@@ -78,7 +78,8 @@ export function renderMandala(params: MandalaParams): string {
   const detailWeight = weight * (1 - 0.4 * contrast);
   // Distance between the 2 lines of a double border, and between a border and its pattern.
   const borderGap = params.borderSpacing ? borderWeight * 2 + 3 : 0;
-  const patternGap = params.borderSpacing ? borderGap / 2 + 4 : 0;
+  // The pattern gap is measured between the edges of the strokes, so it stays the same at every line weight.
+  const patternGap = params.borderSpacing ? borderGap / 2 + borderWeight / 2 + weight / 2 + 3 : 0;
 
   const main: string[] = [];
   const detail: string[] = [];
