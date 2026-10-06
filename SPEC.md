@@ -9,7 +9,7 @@ A web page that generates black-and-white line-art mandalas from exact geometry.
 The control panel has 2 tabs.
 
 1. **Pattern tab:** full name, birthdate, and a Generate button. The page calculates Pythagorean numerology numbers and converts them into a complete mandala. The tab has no other controls.
-2. **Custom tab:** every parameter, filled with the values from the last Generate. Controls that do not apply to the current mandala are disabled, never hidden.
+2. **Design tab:** every parameter, filled with the values from the last Generate. Controls that do not apply to the current mandala are disabled, never hidden.
 
 ### Numerology (Pythagorean system)
 
@@ -36,13 +36,13 @@ The variation seed combines the Expression number with the name and birthdate te
 ### Geometry
 
 1. **Rotational symmetry:** every ring repeats its motif a multiple of the symmetry count.
-2. **Golden ratio ring spacing:** the center medallion radius is R / φ² (φ = 1.618...), and the ring boundaries between the medallion and the outer edge form a geometric sequence. An "even" spacing option is also available.
+2. **Golden ratio ring spacing:** the center medallion radius is R / φ² (φ = 1.618...), and the ring boundaries between the medallion and the outer edge form a geometric sequence. A "Uniform" spacing option (equal ring widths) is also available.
 3. **Center medallion**, one of:
    - **Cymatics, Chladni plate:** the nodal lines of a vibrating square plate, `cos(nπx)·cos(mπy) + cos(mπx)·cos(nπy) = 0`. Lines are traced with marching squares. This is the default center.
    - **Cymatics, rotated:** the same plate function summed over rotated copies, so that the figure has the mandala's symmetry. At high symmetry counts this figure becomes mostly concentric wavy circles.
    - **Seed of Life / Flower of Life:** overlapping circles on a hexagonal grid.
    - **Phyllotaxis:** a sunflower seed head, dots placed at the golden angle (137.508°), with a Fibonacci number of dots.
-4. **Ring motifs.** The variation seed picks a motif and a repeat count for each ring. In the Custom tab, each ring has its own motif menu and repeat menu (symmetry × 1 to 12). Global ring styles: petal and arch tips (pointed or round), detail level (outline, inner outline, inner outline and dots), and rose braid wave depth. Motifs:
+4. **Ring motifs.** The variation seed picks a motif and a repeat count for each ring. In the Design tab, each ring has its own motif menu and repeat menu (symmetry × 1 to 12). Global ring styles: petal and arch tips (pointed or round), detail level (outline, inner outline, inner outline and dots), and rose braid wave depth. Motifs:
    - Lotus petals
    - Scallops (arches between neighboring petals)
    - Flower of Life band (overlapping circles clipped to the ring)
@@ -54,12 +54,14 @@ The variation seed combines the Expression number with the name and birthdate te
 ### Output
 
 1. Black lines on white, line weight adjustable, no fills, so the result prints well for coloring.
-2. Line finish options, each with its own checkbox in the Custom tab:
-   - Thick borders, thin details: ring borders 1.8 × the line weight, inner outlines and dots 0.6 ×, outer edge 2.4 ×. On by default.
-   - Double borders with spacing: each ring border is 2 parallel circles, and each pattern stops a small distance before the border. On by default.
-   - Smooth cymatics curves: traces cymatics lines on a grid with twice the resolution and draws them as Catmull-Rom curves. On by default.
-   - Leave out tiny details: skips dots and inner outlines smaller than 3 units (the outer radius is 500 units). Off by default.
-3. Export SVG (vector, any print size) and PNG (3000 × 3000 pixels).
+2. Lines section of the Design tab: line weight and line options.
+   - Line contrast slider, 0 to 2 (default 1): ring borders are (1 + 0.8 × contrast) × the line weight, inner outlines and dots (1 − 0.4 × contrast) ×, and the outer edge (1 + 1.4 × contrast) ×. At 0 every line has the same weight. Design choice, no source.
+   - Hide difficult to print details: skips dots and inner outlines smaller than 8 units (the outer radius is 500 units), about 3 mm across on an 8 inch print. Off by default.
+3. Rings section of the Design tab: Double borders with spacing. Each ring border is 2 parallel circles, and each pattern stops a small distance before the border. On by default.
+4. Cymatics lines are always traced on the finer grid and drawn as Catmull-Rom curves. The checkbox for this was removed because the unsmoothed lines looked the same at screen and print size.
+5. Shuffle everything (top of the Design tab): picks symmetry (3 to 24), ring spacing, center, petal tips, detail, number of rings (1 to 8), and ring patterns at random from the default lists. Line weight, line contrast, and the checkboxes stay as they are.
+6. Settings: "Copy" puts every setting on the clipboard as JSON text, and "Paste" reads that text and redraws the mandala. Invalid fields in pasted text keep their current values.
+7. Export SVG (vector, any print size) and PNG (3000 × 3000 pixels).
 
 ### Technology
 
@@ -67,12 +69,12 @@ Vite and TypeScript, vanilla DOM, no framework. pnpm. Vitest for the numerology 
 
 ## Defaults and options
 
-Generated mandalas (page load, Generate, and Shuffle rings) use only these:
+Generated mandalas (page load, Generate, Shuffle rings, and Shuffle everything) use only these:
 
 1. Centers: Flower of Life, Seed of Life, sunflower spiral.
 2. Ring patterns: lotus petals, arches, diamond lattice, dots. The mandala drawing guides name petals and teardrops, circles, lines, and triangles as the repeated patterns (`docs/vendor/stanford-cantor-mandala-art-project.pdf`, `docs/vendor/staedtler-how-to-draw-a-mandala.html`).
 
-These are available in the Custom tab only:
+These are available in the Design tab only:
 
 1. Centers: Sri Yantra (`src/geometry/sriYantra.ts`, built from `docs/vendor/sri-chakra-geometry-ijsr-2023.txt` and tested against its tables), Chladni plate (Paul Bourke's formula, `docs/vendor/paulbourke-chladni.html`), and rotated cymatics (design choice, no source).
 2. Ring patterns: Flower of Life band, rose curve braid, cymatics ring (design choices, no source).

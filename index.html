@@ -14,41 +14,33 @@
         <h1>Mandala Effect</h1>
 
         <div class="tabs" role="tablist">
-          <button id="tab-pattern" role="tab" type="button" aria-selected="true" aria-controls="panel-pattern">Pattern</button>
-          <button id="tab-custom" role="tab" type="button" aria-selected="false" aria-controls="panel-custom">Custom</button>
-          <button id="tab-design" role="tab" type="button" aria-selected="false" aria-controls="panel-design">Design</button>
+          <button id="tab-design" role="tab" type="button" aria-selected="true" aria-controls="panel-design">Design</button>
+          <button id="tab-pattern" role="tab" type="button" aria-selected="false" aria-controls="panel-pattern">Pattern</button>
         </div>
 
-        <div id="panel-pattern" role="tabpanel" aria-labelledby="tab-pattern">
-          <section>
-            <label>Full name <input id="name" type="text" autocomplete="off" /></label>
-            <label>Birthdate <input id="birthdate" type="date" /></label>
-            <button id="generate" class="wide" type="button" disabled>Generate</button>
-            <dl id="numbers" class="numbers"></dl>
-          </section>
-        </div>
-
-        <div id="panel-custom" role="tabpanel" aria-labelledby="tab-custom" hidden>
+        <div id="panel-design" role="tabpanel" aria-labelledby="tab-design">
+          <button id="shuffle-all" class="wide" type="button">Shuffle everything</button>
           <section>
             <h2>Overall</h2>
             <label>Symmetry <output id="symmetry-value"></output>
               <input id="symmetry" type="range" min="3" max="24" step="1" />
             </label>
-            <label>Ring spacing
-              <select id="spacing">
-                <option value="golden">Golden ratio</option>
-                <option value="even">Even</option>
-              </select>
-            </label>
-            <label>Line weight <output id="lineWeight-value"></output>
-              <input id="lineWeight" type="range" min="0.5" max="4" step="0.25" />
-            </label>
+            <fieldset class="radios">
+              <legend>Ring spacing</legend>
+              <label class="check"><input type="radio" name="spacing" value="golden" /> Golden ratio</label>
+              <label class="check"><input type="radio" name="spacing" value="even" /> Uniform</label>
+            </fieldset>
           </section>
 
           <section>
-            <h2>Line finish</h2>
-            <label class="check"><input id="smooth" type="checkbox" /> Smooth cymatics curves</label>
-            <label class="check"><input id="minDetail" type="checkbox" /> Leave out tiny details</label>
+            <h2>Lines</h2>
+            <label>Line weight <output id="lineWeight-value"></output>
+              <input id="lineWeight" type="range" min="0.5" max="4" step="0.25" />
+            </label>
+            <label>Line contrast <output id="lineContrast-value"></output>
+              <input id="lineContrast" type="range" min="0" max="2" step="0.1" />
+            </label>
+            <label class="check"><input id="minDetail" type="checkbox" /> Hide difficult to print details</label>
           </section>
 
           <section>
@@ -90,6 +82,7 @@
             <label>Braid wave depth <output id="waveDepth-value"></output>
               <input id="waveDepth" type="range" min="0.1" max="0.5" step="0.02" />
             </label>
+            <label class="check"><input id="borderSpacing" type="checkbox" /> Double borders with spacing</label>
             <table class="ring-table">
               <thead>
                 <tr><th scope="col">Ring</th><th scope="col">Pattern</th><th scope="col">Repeats</th></tr>
@@ -103,12 +96,23 @@
           </section>
         </div>
 
-        <div id="panel-design" role="tabpanel" aria-labelledby="tab-design" hidden>
+        <div id="panel-pattern" role="tabpanel" aria-labelledby="tab-pattern" hidden>
           <section>
-            <label class="check"><input id="weightHierarchy" type="checkbox" /> Thick borders, thin details</label>
-            <label class="check"><input id="borderSpacing" type="checkbox" /> Double borders with spacing</label>
+            <label>Full name <input id="name" type="text" autocomplete="off" /></label>
+            <label>Birthdate <input id="birthdate" type="date" /></label>
+            <button id="generate" class="wide" type="button" disabled>Generate</button>
+            <dl id="numbers" class="numbers"></dl>
           </section>
         </div>
+
+        <section>
+          <h2>Settings</h2>
+          <div class="buttons">
+            <button id="copy-settings" type="button">Copy</button>
+            <button id="paste-settings" type="button">Paste</button>
+          </div>
+          <p id="settings-status" class="status" role="status"></p>
+        </section>
 
         <section>
           <h2>Export</h2>

@@ -24,8 +24,8 @@ export interface MandalaParams {
   waveDepth: number;
   /** Sri Yantra center point. */
   bindu: boolean;
-  /** Thicker ring borders and thinner details. */
-  weightHierarchy: boolean;
+  /** 0: every line uses lineWeight. Higher values make borders thicker and details thinner. */
+  lineContrast: number;
   /** Double-line ring borders with a space between each border and its pattern. */
   borderSpacing: boolean;
   /** Smooth cymatics lines into curves on a finer grid. */
@@ -56,8 +56,9 @@ export function autoRings(seed: number, count: number, symmetry: number, spacing
 export function renderMandala(params: MandalaParams): string {
   const radii = ringRadii(RADIUS, params.rings.length, params.spacing);
   const weight = params.lineWeight;
-  const borderWeight = params.weightHierarchy ? weight * 1.8 : weight;
-  const detailWeight = params.weightHierarchy ? weight * 0.6 : weight;
+  const contrast = params.lineContrast;
+  const borderWeight = weight * (1 + 0.8 * contrast);
+  const detailWeight = weight * (1 - 0.4 * contrast);
   // Distance between the 2 lines of a double border, and between a border and its pattern.
   const borderGap = params.borderSpacing ? borderWeight * 2 + 3 : 0;
   const patternGap = params.borderSpacing ? borderGap / 2 + 4 : 0;
@@ -91,7 +92,7 @@ export function renderMandala(params: MandalaParams): string {
   });
 
   const size = RADIUS + MARGIN;
-  const outerWeight = params.weightHierarchy ? weight * 2.4 : weight;
+  const outerWeight = weight * (1 + 1.4 * contrast);
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-size} ${-size} ${size * 2} ${size * 2}" width="${size * 2}" height="${size * 2}">`,
     `<rect x="${-size}" y="${-size}" width="${size * 2}" height="${size * 2}" fill="#fff"/>`,

@@ -1,10 +1,11 @@
 import "./style.css";
-import { CENTER_LABELS, type CenterName } from "./geometry/centers";
+import { CENTER_LABELS, type CenterName, DEFAULT_CENTERS } from "./geometry/centers";
 import { type Detail, MAX_REPEAT, MOTIF_LABELS, MOTIF_NAMES, type MotifName, type PetalTip } from "./geometry/motifs";
 import type { Spacing } from "./geometry/rings";
 import { downloadPng, downloadSvg } from "./export";
 import { type NumerologyProfile, parseBirthDate } from "./numerology";
 import { personalMandala } from "./personal";
+import { settingsFromText, settingsToText } from "./settings";
 import { autoRings, type MandalaParams, renderMandala, type RingSpec } from "./render";
 
 const MAX_RINGS = 8;
@@ -22,8 +23,9 @@ const params: MandalaParams = {
   detail: 1,
   waveDepth: 0.36,
   bindu: true,
-  weightHierarchy: true,
+  lineContrast: 1,
   borderSpacing: true,
+  /** Always on; at screen and print size the unsmoothed lines looked the same. */
   smooth: true,
   minDetail: false,
 };
@@ -44,9 +46,8 @@ for (const [value, label] of Object.entries(CENTER_LABELS)) {
 // Tabs
 
 const tabs = [
-  { tab: $<HTMLButtonElement>("tab-pattern"), panel: $<HTMLDivElement>("panel-pattern") },
-  { tab: $<HTMLButtonElement>("tab-custom"), panel: $<HTMLDivElement>("panel-custom") },
   { tab: $<HTMLButtonElement>("tab-design"), panel: $<HTMLDivElement>("panel-design") },
+  { tab: $<HTMLButtonElement>("tab-pattern"), panel: $<HTMLDivElement>("panel-pattern") },
 ];
 for (const { tab } of tabs) {
   tab.addEventListener("click", () => {
@@ -111,7 +112,7 @@ function syncRingRows() {
 
 // Line finish checkboxes
 
-const finishFields = ["weightHierarchy", "borderSpacing", "smooth", "minDetail", "bindu"] as const;
+const finishFields = ["borderSpacing", "minDetail", "bindu"] as const;
 
 for (const field of finishFields) {
   $<HTMLInputElement>(field).addEventListener("change", (event) => {
@@ -122,7 +123,7 @@ for (const field of finishFields) {
 
 // Simple numeric and select controls
 
-const ranges = ["symmetry", "lineWeight", "chladniN", "chladniM", "waveDepth", "seed"] as const;
+const ranges = ["symmetry", "lineWeight", "lineContrast", "chladniN", "chladniM", "waveDepth", "seed"] as const;
 
 function syncControls() {
   for (const field of ranges) {
@@ -132,7 +133,7 @@ function syncControls() {
   }
   $<HTMLInputElement>("ringCount").value = String(params.rings.length);
   $<HTMLOutputElement>("ringCount-value").textContent = String(params.rings.length);
-  $<HTMLSelectElement>("spacing").value = params.spacing;
+  for (const radio of spacingRadios) radio.checked = radio.value === params.spacing;
   $<HTMLSelectElement>("petalTip").value = params.petalTip;
   $<HTMLSelectElement>("detail").value = String(params.detail);
   centerSelect.value = params.center;
@@ -180,10 +181,13 @@ $<HTMLInputElement>("ringCount").addEventListener("input", (event) => {
   draw();
 });
 
-$<HTMLSelectElement>("spacing").addEventListener("change", (event) => {
-  params.spacing = (event.target as HTMLSelectElement).value as Spacing;
-  draw();
-});
+const spacingRadios = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="spacing"]'));
+for (const radio of spacingRadios) {
+  radio.addEventListener("change", () => {
+    params.spacing = radio.value as Spacing;
+    draw();
+  });
+}
 
 $<HTMLSelectElement>("petalTip").addEventListener("change", (event) => {
   params.petalTip = (event.target as HTMLSelectElement).value as PetalTip;
@@ -201,6 +205,24 @@ centerSelect.addEventListener("change", () => {
 });
 
 $<HTMLButtonElement>("shuffle").addEventListener("click", () => reseed(Math.floor(Math.random() * 100000)));
+
+/** Random whole number from min to max, inclusive. */
+const randomInt = (min: number, max: number) => min + Math.floor(Math.random() * (max - min + 1));
+const randomItem = <T>(items: readonly T[]): T => items[randomInt(0, items.length - 1)];
+
+// Picks every pattern setting at random from its control's range, using only the default centers and
+// ring patterns. Line weight, line contrast, and the checkboxes stay as they are.
+$<HTMLButtonElement>("shuffle-all").addEventListener("click", () => {
+  params.symmetry = randomInt(3, 24);
+  params.spacing = randomItem(["golden", "even"] as const);
+  params.center = randomItem(DEFAULT_CENTERS);
+  params.petalTip = randomItem(["pointed", "round"] as const);
+  params.detail = randomItem([0, 1, 2] as const);
+  params.seed = randomInt(0, 99999);
+  params.rings = autoRings(params.seed, randomInt(1, MAX_RINGS), params.symmetry, params.spacing);
+  stash = [];
+  draw();
+});
 
 // Pattern tab
 
@@ -244,6 +266,40 @@ generateButton.addEventListener("click", () => {
   stash = [];
   draw();
   showNumbers(result.numbers);
+});
+
+// Settings copy and paste
+
+const settingsStatus = $<HTMLParagraphElement>("settings-status");
+
+const copyButton = $<HTMLButtonElement>("copy-settings");
+let copyTimer = 0;
+
+copyButton.addEventListener("click", () => {
+  settingsStatus.textContent = "";
+  navigator.clipboard.writeText(settingsToText(params));
+  copyButton.textContent = "Copied";
+  clearTimeout(copyTimer);
+  copyTimer = window.setTimeout(() => (copyButton.textContent = "Copy"), 1200);
+});
+
+$<HTMLButtonElement>("paste-settings").addEventListener("click", async () => {
+  let text: string | null;
+  try {
+    text = await navigator.clipboard.readText();
+  } catch {
+    text = prompt("Paste the settings text:");
+  }
+  settingsStatus.textContent = "";
+  if (text === null) return;
+  const pasted = settingsFromText(text, params);
+  if (!pasted) {
+    settingsStatus.textContent = "The clipboard does not contain mandala settings.";
+    return;
+  }
+  Object.assign(params, pasted);
+  stash = [];
+  draw();
 });
 
 // Export

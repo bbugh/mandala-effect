@@ -91,6 +91,24 @@ label.check {
   margin-bottom: 10px;
 }
 
+fieldset.radios {
+  display: flex;
+  gap: 16px;
+  margin: 0 0 14px;
+  padding: 0;
+  border: 0;
+}
+
+fieldset.radios legend {
+  width: 100%;
+  padding: 0;
+  margin-bottom: 6px;
+}
+
+fieldset.radios label.check {
+  margin-bottom: 0;
+}
+
 label.check input {
   width: 16px;
   height: 16px;
@@ -114,6 +132,36 @@ button {
   background: var(--accent);
   color: #fff;
   cursor: pointer;
+}
+
+button {
+  transition: background-color 120ms, border-color 120ms, color 120ms, transform 60ms;
+}
+
+button:hover:not(:disabled) {
+  background: #6f3a1f;
+  border-color: #6f3a1f;
+}
+
+button:active:not(:disabled) {
+  transform: translateY(1px);
+  background: #5a2f19;
+}
+
+.tabs button:hover:not(:disabled),
+.seed-row button:hover:not(:disabled) {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.seed-row button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.tabs button[aria-selected="true"]:hover {
+  background: var(--panel);
+  border-color: var(--line);
 }
 
 button:disabled {
@@ -267,4 +315,14 @@ select:disabled {
   .canvas svg {
     width: 100%;
   }
+}
+
+.status:empty {
+  display: none;
+}
+
+.status {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--muted);
 }

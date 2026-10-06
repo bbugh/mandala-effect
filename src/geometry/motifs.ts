@@ -23,7 +23,7 @@ export const MOTIF_NAMES = Object.keys(MOTIF_LABELS) as MotifName[];
 /**
  * Patterns used when rings are generated: petals and teardrops, circles, triangles, and
  * arches, as named in the mandala drawing guides (docs/vendor/stanford-cantor-mandala-art-project.pdf,
- * docs/vendor/staedtler-how-to-draw-a-mandala.html). The others are available in the Custom tab only.
+ * docs/vendor/staedtler-how-to-draw-a-mandala.html). The others are available in the Design tab only.
  */
 export const DEFAULT_MOTIFS: readonly MotifName[] = ["lotus", "scallops", "lattice", "dots"];
 
@@ -45,8 +45,11 @@ export interface RingStyle {
   minDetail: boolean;
 }
 
-/** Smallest dot radius or inner-outline width drawn when minDetail is on, in drawing units (outer radius is 500). */
-export const MIN_DETAIL = 3;
+/**
+ * Smallest dot radius or inner-outline width drawn when minDetail is on, in drawing units (outer radius is 500).
+ * Design choice, no source: 8 units is about 3 mm across when the mandala is printed 8 inches wide.
+ */
+export const MIN_DETAIL = 8;
 
 /** Output of a motif: main outlines, and detail elements (inner outlines and dots) drawn with a thinner line. */
 export interface MotifOutput {
