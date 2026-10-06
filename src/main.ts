@@ -12,7 +12,7 @@ const MAX_RINGS = 8;
 const params: MandalaParams = {
   symmetry: 12,
   spacing: "golden",
-  center: "chladni",
+  center: "flowerOfLife",
   chladniN: 3,
   chladniM: 5,
   seed: 108,
@@ -21,6 +21,7 @@ const params: MandalaParams = {
   petalTip: "pointed",
   detail: 1,
   waveDepth: 0.36,
+  bindu: true,
   weightHierarchy: true,
   borderSpacing: true,
   smooth: true,
@@ -110,7 +111,7 @@ function syncRingRows() {
 
 // Line finish checkboxes
 
-const finishFields = ["weightHierarchy", "borderSpacing", "smooth", "minDetail"] as const;
+const finishFields = ["weightHierarchy", "borderSpacing", "smooth", "minDetail", "bindu"] as const;
 
 for (const field of finishFields) {
   $<HTMLInputElement>(field).addEventListener("change", (event) => {
@@ -141,6 +142,7 @@ function syncControls() {
     params.center === "chladni" || params.center === "cymatics" || params.rings.some((r) => r.motif === "cymatics");
   $<HTMLInputElement>("chladniN").disabled = !usesCymatics;
   $<HTMLInputElement>("chladniM").disabled = !usesCymatics;
+  $<HTMLInputElement>("bindu").disabled = params.center !== "sriYantra";
   $<HTMLInputElement>("waveDepth").disabled = !params.rings.some((r) => r.motif === "roseBraid");
   syncRingRows();
 }

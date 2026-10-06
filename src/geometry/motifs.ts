@@ -20,6 +20,13 @@ export const MOTIF_LABELS: Record<MotifName, string> = {
 
 export const MOTIF_NAMES = Object.keys(MOTIF_LABELS) as MotifName[];
 
+/**
+ * Patterns used when rings are generated: petals and teardrops, circles, triangles, and
+ * arches, as named in the mandala drawing guides (docs/vendor/stanford-cantor-mandala-art-project.pdf,
+ * docs/vendor/staedtler-how-to-draw-a-mandala.html). The others are available in the Custom tab only.
+ */
+export const DEFAULT_MOTIFS: readonly MotifName[] = ["lotus", "scallops", "lattice", "dots"];
+
 export type PetalTip = "pointed" | "round";
 
 /** 0: outline only. 1: adds an inner outline. 2: adds an inner outline and dots. */

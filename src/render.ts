@@ -1,5 +1,5 @@
 import { type CenterName, drawCenter } from "./geometry/centers";
-import { type Detail, legibleRepeats, MOTIF_NAMES, MOTIFS, type MotifName, type PetalTip } from "./geometry/motifs";
+import { DEFAULT_MOTIFS, type Detail, legibleRepeats, MOTIFS, type MotifName, type PetalTip } from "./geometry/motifs";
 import { ringRadii, type Spacing } from "./geometry/rings";
 import { circle } from "./geometry/svg";
 import { createRng, pick } from "./rng";
@@ -22,6 +22,8 @@ export interface MandalaParams {
   petalTip: PetalTip;
   detail: Detail;
   waveDepth: number;
+  /** Sri Yantra center point. */
+  bindu: boolean;
   /** Thicker ring borders and thinner details. */
   weightHierarchy: boolean;
   /** Double-line ring borders with a space between each border and its pattern. */
@@ -44,7 +46,7 @@ export function autoRings(seed: number, count: number, symmetry: number, spacing
   const radii = ringRadii(RADIUS, count, spacing);
   const rings: RingSpec[] = [];
   for (let i = 0; i < count; i++) {
-    const motif = pick(rng, MOTIF_NAMES.filter((name) => name !== rings[i - 1]?.motif));
+    const motif = pick(rng, DEFAULT_MOTIFS.filter((name) => name !== rings[i - 1]?.motif));
     const options = legibleRepeats(motif, radii[i], radii[i + 1], symmetry);
     rings.push({ motif, repeat: pick(rng, options.slice(0, 3)) });
   }
@@ -69,7 +71,8 @@ export function renderMandala(params: MandalaParams): string {
     else borders.push(circle(0, 0, r));
   };
 
-  main.push(drawCenter(radii[0] - patternGap, params));
+  const center = drawCenter(radii[0] - patternGap, params);
+  main.push(center.lines);
   border(radii[0]);
 
   params.rings.forEach((spec, i) => {
@@ -97,6 +100,8 @@ export function renderMandala(params: MandalaParams): string {
     `<g stroke-width="${weight}">${main.join("")}</g>`,
     `<g stroke-width="${borderWeight}">${borders.join("")}</g>`,
     `<g stroke-width="${outerWeight}">${circle(0, 0, RADIUS + 12)}</g>`,
-    `</g></svg>`,
+    `</g>`,
+    `<g fill="#000" stroke="none">${center.filled}</g>`,
+    `</svg>`,
   ].join("");
 }

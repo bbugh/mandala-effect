@@ -38,7 +38,7 @@ export function personalMandala(
     params: {
       symmetry,
       spacing: "golden",
-      center: "chladni",
+      center: "flowerOfLife",
       chladniN,
       chladniM,
       seed,
@@ -47,6 +47,7 @@ export function personalMandala(
       petalTip: "pointed",
       detail: 1,
       waveDepth: 0.36,
+      bindu: true,
       weightHierarchy: finish.weightHierarchy,
       borderSpacing: finish.borderSpacing,
       smooth: finish.smooth,

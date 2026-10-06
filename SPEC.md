@@ -65,6 +65,22 @@ The variation seed combines the Expression number with the name and birthdate te
 
 Vite and TypeScript, vanilla DOM, no framework. pnpm. Vitest for the numerology functions. The drawing code produces an SVG string, which the page inserts into the document and the export buttons save.
 
+## Defaults and options
+
+Generated mandalas (page load, Generate, and Shuffle rings) use only these:
+
+1. Centers: Flower of Life, Seed of Life, sunflower spiral.
+2. Ring patterns: lotus petals, arches, diamond lattice, dots. The mandala drawing guides name petals and teardrops, circles, lines, and triangles as the repeated patterns (`docs/vendor/stanford-cantor-mandala-art-project.pdf`, `docs/vendor/staedtler-how-to-draw-a-mandala.html`).
+
+These are available in the Custom tab only:
+
+1. Centers: Sri Yantra (`src/geometry/sriYantra.ts`, built from `docs/vendor/sri-chakra-geometry-ijsr-2023.txt` and tested against its tables), Chladni plate (Paul Bourke's formula, `docs/vendor/paulbourke-chladni.html`), and rotated cymatics (design choice, no source).
+2. Ring patterns: Flower of Life band, rose curve braid, cymatics ring (design choices, no source).
+
+## Sources
+
+The guides describe the construction this project uses: draw concentric circles from a center point, divide the circle into equal parts, and repeat a pattern around each ring. The number of rings, the ring spacing, and the choice of pattern for each ring are the artist's choices in those guides; in this project they are set by the controls or by the variation number.
+
 ## Out of scope for version 1
 
 See `backlog.md`.
