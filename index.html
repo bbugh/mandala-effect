@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mandala Effect</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <main class="layout">
+      <aside class="panel">
+        <h1>Mandala Effect</h1>
+
+        <div class="tabs" role="tablist">
+          <button id="tab-pattern" role="tab" type="button" aria-selected="true" aria-controls="panel-pattern">Pattern</button>
+          <button id="tab-custom" role="tab" type="button" aria-selected="false" aria-controls="panel-custom">Custom</button>
+          <button id="tab-design" role="tab" type="button" aria-selected="false" aria-controls="panel-design">Design</button>
+        </div>
+
+        <div id="panel-pattern" role="tabpanel" aria-labelledby="tab-pattern">
+          <section>
+            <label>Full name <input id="name" type="text" autocomplete="off" /></label>
+            <label>Birthdate <input id="birthdate" type="date" /></label>
+            <button id="generate" class="wide" type="button" disabled>Generate</button>
+            <dl id="numbers" class="numbers"></dl>
+          </section>
+        </div>
+
+        <div id="panel-custom" role="tabpanel" aria-labelledby="tab-custom" hidden>
+          <section>
+            <h2>Overall</h2>
+            <label>Symmetry <output id="symmetry-value"></output>
+              <input id="symmetry" type="range" min="3" max="24" step="1" />
+            </label>
+            <label>Ring spacing
+              <select id="spacing">
+                <option value="golden">Golden ratio</option>
+                <option value="even">Even</option>
+              </select>
+            </label>
+            <label>Line weight <output id="lineWeight-value"></output>
+              <input id="lineWeight" type="range" min="0.5" max="4" step="0.25" />
+            </label>
+          </section>
+
+          <section>
+            <h2>Line finish</h2>
+            <label class="check"><input id="smooth" type="checkbox" /> Smooth cymatics curves</label>
+            <label class="check"><input id="minDetail" type="checkbox" /> Leave out tiny details</label>
+          </section>
+
+          <section>
+            <h2>Center</h2>
+            <label>Design
+              <select id="center"></select>
+            </label>
+            <div class="pair">
+              <label>Cymatics n <output id="chladniN-value"></output>
+                <input id="chladniN" type="range" min="1" max="12" step="1" />
+              </label>
+              <label>Cymatics m <output id="chladniM-value"></output>
+                <input id="chladniM" type="range" min="1" max="12" step="1" />
+              </label>
+            </div>
+          </section>
+
+          <section>
+            <h2>Rings</h2>
+            <label>Number of rings <output id="ringCount-value"></output>
+              <input id="ringCount" type="range" min="1" max="8" step="1" />
+            </label>
+            <div class="pair">
+              <label>Petal and arch tips
+                <select id="petalTip">
+                  <option value="pointed">Pointed</option>
+                  <option value="round">Round</option>
+                </select>
+              </label>
+              <label>Detail
+                <select id="detail">
+                  <option value="0">Outline</option>
+                  <option value="1">Inner outline</option>
+                  <option value="2">Inner outline and dots</option>
+                </select>
+              </label>
+            </div>
+            <label>Braid wave depth <output id="waveDepth-value"></output>
+              <input id="waveDepth" type="range" min="0.1" max="0.5" step="0.02" />
+            </label>
+            <table class="ring-table">
+              <thead>
+                <tr><th scope="col">Ring</th><th scope="col">Pattern</th><th scope="col">Repeats</th></tr>
+              </thead>
+              <tbody id="ring-rows"></tbody>
+            </table>
+            <div class="seed-row">
+              <label>Variation <input id="seed" type="number" min="0" step="1" /></label>
+              <button id="shuffle" type="button">Shuffle rings</button>
+            </div>
+          </section>
+        </div>
+
+        <div id="panel-design" role="tabpanel" aria-labelledby="tab-design" hidden>
+          <section>
+            <label class="check"><input id="weightHierarchy" type="checkbox" /> Thick borders, thin details</label>
+            <label class="check"><input id="borderSpacing" type="checkbox" /> Double borders with spacing</label>
+          </section>
+        </div>
+
+        <section>
+          <h2>Export</h2>
+          <div class="buttons">
+            <button id="export-svg" type="button">Download SVG</button>
+            <button id="export-png" type="button">Download PNG</button>
+          </div>
+        </section>
+      </aside>
+
+      <div class="canvas" id="mandala"></div>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
