@@ -136,14 +136,15 @@ function collector(style: RingStyle) {
   };
 }
 
-function lotus({ r1, r2, count, offset, style }: RingContext): MotifOutput {
+function lotus({ r1, r2, count, offset, clip, style }: RingContext): MotifOutput {
   const out = collector(style);
   const h = r2 - r1;
   const step = TAU / count;
   const w = step / 2;
   for (let i = 0; i < count; i++) {
     const a = i * step + (offset ? w : 0);
-    out.main.push(petal(a, r1, r2 - h * 0.04, w, style.petalTip));
+    // The petal's base starts at the inner border line.
+    out.main.push(petal(a, clip[0], r2 - h * 0.04, w, style.petalTip));
     if (style.detail >= 1 && out.large(r1 * w * 0.55)) out.detail.push(petal(a, r1, r1 + h * 0.62, w * 0.55, style.petalTip));
     if (style.detail >= 2) out.dot(polar(r1 + h * 0.78, a), h * 0.05);
   }
@@ -279,8 +280,10 @@ function dots({ r1, r2, count, offset, style }: RingContext): MotifOutput {
  * cos(nπs)·cos(mπt) + cos(mπs)·cos(nπt) = 0, where s is the position across the
  * ring (0 to 1) and t is the position around it (0 to 2 per repeat).
  */
-function cymatics({ r1, r2, count, offset, style }: RingContext): MotifOutput {
+function cymatics({ count, offset, id, clip, style }: RingContext): MotifOutput {
   const { chladniN: n, chladniM: m, smooth } = style;
+  // The plate spans the ring between the border lines and is masked there.
+  const [r1, r2] = clip;
   const h = r2 - r1;
   const shift = offset ? Math.PI / count : 0;
   const plate = (s: number, theta: number) => {
@@ -294,7 +297,7 @@ function cymatics({ r1, r2, count, offset, style }: RingContext): MotifOutput {
     ny: Math.min(6000 * resolution, count * 48 * resolution),
   });
   const d = linesToPath(lines.map((line) => line.map(([s, theta]) => polar(r1 + s * h, theta))), smooth);
-  return { main: d ? path(d) : "", detail: "" };
+  return { main: d ? clipToRing(`${id}-main`, r1, r2, path(d)) : "", detail: "" };
 }
 
 export const MOTIFS: Record<MotifName, (ctx: RingContext) => MotifOutput> = {
