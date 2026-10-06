@@ -58,7 +58,7 @@ The variation seed combines the Expression number with the name and birthdate te
    - Hide difficult to print details: skips dots and inner outlines smaller than 8 units (the outer radius is 500 units), about 3 mm across on an 8 inch print. Off by default.
 3. Rings section of the controls panel: Double borders with spacing. Each ring border is 2 parallel circles, and each pattern stops a small distance before the border. On by default.
 4. Cymatics lines are always traced on the finer grid and drawn as Catmull-Rom curves. The checkbox for this was removed because the unsmoothed lines looked the same at screen and print size.
-5. Shuffle everything (top of the controls panel): picks symmetry (3 to 24), ring spacing, center, petal tips, detail, number of rings (1 to 8), and ring patterns at random from the default lists. Line weight, line contrast, and the checkboxes stay as they are.
+5. Shuffle everything (top of the controls panel): picks every setting at random, including every center, every ring pattern, every slider within its range, and every checkbox.
 6. Settings: "Copy" puts every setting on the clipboard as JSON text, and "Paste" reads that text and redraws the mandala. Invalid fields in pasted text keep their current values.
 7. Export SVG (vector, any print size) and PNG (3000 × 3000 pixels).
 
@@ -68,7 +68,7 @@ Vite and TypeScript, vanilla DOM, no framework. pnpm. Vitest for the numerology 
 
 ## Defaults and options
 
-Generated mandalas (page load, Shuffle rings, and Shuffle everything) use only these:
+The mandala shown on page load uses only these. Shuffle everything, Shuffle rings, the Variation number, and rings added with the Number of rings slider use every option:
 
 1. Centers: Flower of Life, Seed of Life, sunflower spiral.
 2. Ring patterns: lotus petals, arches, diamond lattice, dots. The mandala drawing guides name petals and teardrops, circles, lines, and triangles as the repeated patterns (`docs/vendor/stanford-cantor-mandala-art-project.pdf`, `docs/vendor/staedtler-how-to-draw-a-mandala.html`).

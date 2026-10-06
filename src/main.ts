@@ -1,5 +1,5 @@
 import "./style.css";
-import { CENTER_LABELS, type CenterName, DEFAULT_CENTERS } from "./geometry/centers";
+import { CENTER_LABELS, type CenterName } from "./geometry/centers";
 import { type Detail, MAX_REPEAT, MOTIF_LABELS, MOTIF_NAMES, type MotifName, type PetalTip } from "./geometry/motifs";
 import type { Spacing } from "./geometry/rings";
 import { downloadPng, downloadSvg } from "./export";
@@ -78,7 +78,7 @@ const rows: RingRow[] = Array.from({ length: MAX_RINGS }, (_, i) => {
 });
 
 function syncRingRows() {
-  const preview = autoRings(params.seed, MAX_RINGS, params.symmetry, params.spacing);
+  const preview = autoRings(params.seed, MAX_RINGS, params.symmetry, params.spacing, MOTIF_NAMES);
   rows.forEach((row, i) => {
     const active = i < params.rings.length;
     const spec = params.rings[i] ?? stash[i] ?? preview[i];
@@ -140,7 +140,7 @@ function draw() {
 
 function reseed(seed: number) {
   params.seed = seed;
-  params.rings = autoRings(seed, params.rings.length, params.symmetry, params.spacing);
+  params.rings = autoRings(seed, params.rings.length, params.symmetry, params.spacing, MOTIF_NAMES);
   stash = [];
   draw();
 }
@@ -158,7 +158,7 @@ for (const field of ranges) {
 $<HTMLInputElement>("ringCount").addEventListener("input", (event) => {
   const count = Number((event.target as HTMLInputElement).value);
   params.rings.forEach((spec, i) => (stash[i] = spec));
-  const filled = autoRings(params.seed, count, params.symmetry, params.spacing);
+  const filled = autoRings(params.seed, count, params.symmetry, params.spacing, MOTIF_NAMES);
   params.rings = filled.map((spec, i) => params.rings[i] ?? stash[i] ?? spec);
   draw();
 });
@@ -192,16 +192,32 @@ $<HTMLButtonElement>("shuffle").addEventListener("click", () => reseed(Math.floo
 const randomInt = (min: number, max: number) => min + Math.floor(Math.random() * (max - min + 1));
 const randomItem = <T>(items: readonly T[]): T => items[randomInt(0, items.length - 1)];
 
-// Picks every pattern setting at random from its control's range, using only the default centers and
-// ring patterns. Line weight, line contrast, and the checkboxes stay as they are.
+/** Random value from a slider's range, in its steps. */
+const randomSlider = (id: string) => {
+  const input = $<HTMLInputElement>(id);
+  const [min, max, step] = [Number(input.min), Number(input.max), Number(input.step)];
+  return Number((min + randomInt(0, Math.round((max - min) / step)) * step).toFixed(2));
+};
+
+// Picks every setting at random: every center, every ring pattern, every slider, and every checkbox.
 $<HTMLButtonElement>("shuffle-all").addEventListener("click", () => {
-  params.symmetry = randomInt(3, 24);
+  params.symmetry = randomSlider("symmetry");
   params.spacing = randomItem(["golden", "even"] as const);
-  params.center = randomItem(DEFAULT_CENTERS);
+  params.lineWeight = randomSlider("lineWeight");
+  params.lineContrast = randomSlider("lineContrast");
+  params.minDetail = randomItem([true, false]);
+  params.center = randomItem(Object.keys(CENTER_LABELS) as CenterName[]);
+  params.bindu = randomItem([true, false]);
+  params.chladniN = randomSlider("chladniN");
+  // Equal modes produce a blank Chladni plate.
+  do params.chladniM = randomSlider("chladniM");
+  while (params.chladniM === params.chladniN);
   params.petalTip = randomItem(["pointed", "round"] as const);
   params.detail = randomItem([0, 1, 2] as const);
+  params.waveDepth = randomSlider("waveDepth");
+  params.borderSpacing = randomItem([true, false]);
   params.seed = randomInt(0, 99999);
-  params.rings = autoRings(params.seed, randomInt(1, MAX_RINGS), params.symmetry, params.spacing);
+  params.rings = autoRings(params.seed, randomSlider("ringCount"), params.symmetry, params.spacing, MOTIF_NAMES);
   stash = [];
   draw();
 });

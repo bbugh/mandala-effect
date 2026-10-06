@@ -41,12 +41,18 @@ const MARGIN = 24;
  * Chooses a motif and a legible repeat count for each ring from the variation seed.
  * A ring never repeats the motif of the ring directly inside it.
  */
-export function autoRings(seed: number, count: number, symmetry: number, spacing: Spacing): RingSpec[] {
+export function autoRings(
+  seed: number,
+  count: number,
+  symmetry: number,
+  spacing: Spacing,
+  motifs: readonly MotifName[] = DEFAULT_MOTIFS,
+): RingSpec[] {
   const rng = createRng(seed);
   const radii = ringRadii(RADIUS, count, spacing);
   const rings: RingSpec[] = [];
   for (let i = 0; i < count; i++) {
-    const motif = pick(rng, DEFAULT_MOTIFS.filter((name) => name !== rings[i - 1]?.motif));
+    const motif = pick(rng, motifs.filter((name) => name !== rings[i - 1]?.motif));
     const options = legibleRepeats(motif, radii[i], radii[i + 1], symmetry);
     rings.push({ motif, repeat: pick(rng, options.slice(0, 3)) });
   }
