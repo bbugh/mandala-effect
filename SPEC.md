@@ -59,8 +59,9 @@ The variation seed combines the Expression number with the name and birthdate te
 3. Rings section of the controls panel: Double borders with spacing. Each ring border is 2 parallel circles, and each pattern stops a small distance before the border. On by default.
 4. Cymatics lines are always traced on the finer grid and drawn as Catmull-Rom curves. The checkbox for this was removed because the unsmoothed lines looked the same at screen and print size.
 5. Shuffle everything (top of the controls panel): picks every setting at random, including every center, every ring pattern, every slider within its range, and every checkbox.
-6. Settings: "Copy" puts every setting on the clipboard as JSON text, and "Paste" reads that text and redraws the mandala. Invalid fields in pasted text keep their current values.
-7. Export SVG (vector, any print size) and PNG (3000 × 3000 pixels).
+6. Repeat counts: each ring's Repeats dropdown disables the counts at which its pattern is not legible in that ring. When the pattern, symmetry, ring spacing, or number of rings changes, or settings are pasted, a ring whose count is no longer legible changes to the closest legible count.
+7. Settings: "Copy" puts every setting on the clipboard as JSON text, and "Paste" reads that text and redraws the mandala. Invalid fields in pasted text keep their current values.
+8. Export SVG (vector, any print size) and PNG (3000 × 3000 pixels).
 
 ### Technology
 

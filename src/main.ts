@@ -1,10 +1,11 @@
 import "./style.css";
 import { CENTER_LABELS, type CenterName } from "./geometry/centers";
-import { type Detail, MAX_REPEAT, MOTIF_LABELS, MOTIF_NAMES, type MotifName, type PetalTip } from "./geometry/motifs";
+import { type Detail, legibleRepeats, MAX_REPEAT, MOTIF_LABELS, MOTIF_NAMES, type MotifName, type PetalTip } from "./geometry/motifs";
+import { ringRadii } from "./geometry/rings";
 import type { Spacing } from "./geometry/rings";
 import { downloadPng, downloadSvg } from "./export";
 import { settingsFromText, settingsToText } from "./settings";
-import { autoRings, type MandalaParams, renderMandala, type RingSpec } from "./render";
+import { autoRings, fitRepeats, type MandalaParams, RADIUS, renderMandala, type RingSpec } from "./render";
 
 const MAX_RINGS = 8;
 
@@ -79,6 +80,7 @@ const rows: RingRow[] = Array.from({ length: MAX_RINGS }, (_, i) => {
 
 function syncRingRows() {
   const preview = autoRings(params.seed, MAX_RINGS, params.symmetry, params.spacing, MOTIF_NAMES);
+  const radii = ringRadii(RADIUS, params.rings.length, params.spacing);
   rows.forEach((row, i) => {
     const active = i < params.rings.length;
     const spec = params.rings[i] ?? stash[i] ?? preview[i];
@@ -86,8 +88,11 @@ function syncRingRows() {
     row.repeat.value = String(spec.repeat);
     row.motif.disabled = !active;
     row.repeat.disabled = !active;
+    // Repeat counts at which the motif would not be legible in this ring are disabled.
+    const legible = active ? legibleRepeats(spec.motif, radii[i], radii[i + 1], params.symmetry) : [];
     Array.from(row.repeat.options).forEach((option, k) => {
       option.textContent = String(params.symmetry * (k + 1));
+      option.disabled = active && !legible.includes(k + 1);
     });
   });
 }
@@ -133,6 +138,7 @@ function syncControls() {
 let currentSvg = "";
 
 function draw() {
+  params.rings = fitRepeats(params.rings, params.symmetry, params.spacing);
   syncControls();
   currentSvg = renderMandala(params);
   view.innerHTML = currentSvg;

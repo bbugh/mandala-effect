@@ -59,6 +59,17 @@ export function autoRings(
   return rings;
 }
 
+/** Changes each ring's repeat count to the closest one at which its motif is legible in that ring. */
+export function fitRepeats(rings: RingSpec[], symmetry: number, spacing: Spacing): RingSpec[] {
+  const radii = ringRadii(RADIUS, rings.length, spacing);
+  return rings.map((ring, i) => {
+    const options = legibleRepeats(ring.motif, radii[i], radii[i + 1], symmetry);
+    if (options.includes(ring.repeat)) return ring;
+    const repeat = options.reduce((best, k) => (Math.abs(k - ring.repeat) < Math.abs(best - ring.repeat) ? k : best));
+    return { ...ring, repeat };
+  });
+}
+
 export function renderMandala(params: MandalaParams): string {
   const radii = ringRadii(RADIUS, params.rings.length, params.spacing);
   const weight = params.lineWeight;
