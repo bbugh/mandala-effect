@@ -1,6 +1,6 @@
 import "./style.css";
 import { CENTER_LABELS, type CenterName } from "./geometry/centers";
-import { type Detail, legibleRepeats, MAX_REPEAT, MOTIF_LABELS, MOTIF_NAMES, type MotifName, type PetalTip } from "./geometry/motifs";
+import { legibleRepeats, MAX_REPEAT, MOTIF_LABELS, MOTIF_NAMES, type MotifName, type PetalTip } from "./geometry/motifs";
 import { ringRadii } from "./geometry/rings";
 import type { Spacing } from "./geometry/rings";
 import { downloadPng, downloadSvg } from "./export";
@@ -19,7 +19,8 @@ const params: MandalaParams = {
   lineWeight: 1.5,
   rings: autoRings(108, 5, 12, "golden"),
   petalTip: "pointed",
-  detail: 1,
+  innerOutline: true,
+  dots: false,
   waveDepth: 0.36,
   bindu: true,
   lineContrast: 1,
@@ -99,7 +100,7 @@ function syncRingRows() {
 
 // Line finish checkboxes
 
-const finishFields = ["borderSpacing", "minDetail", "bindu"] as const;
+const finishFields = ["innerOutline", "dots", "borderSpacing", "minDetail", "bindu"] as const;
 
 for (const field of finishFields) {
   $<HTMLInputElement>(field).addEventListener("change", (event) => {
@@ -122,7 +123,6 @@ function syncControls() {
   $<HTMLOutputElement>("ringCount-value").textContent = String(params.rings.length);
   for (const radio of spacingRadios) radio.checked = radio.value === params.spacing;
   $<HTMLSelectElement>("petalTip").value = params.petalTip;
-  $<HTMLSelectElement>("detail").value = String(params.detail);
   centerSelect.value = params.center;
   for (const field of finishFields) $<HTMLInputElement>(field).checked = params[field];
 
@@ -182,11 +182,6 @@ $<HTMLSelectElement>("petalTip").addEventListener("change", (event) => {
   draw();
 });
 
-$<HTMLSelectElement>("detail").addEventListener("change", (event) => {
-  params.detail = Number((event.target as HTMLSelectElement).value) as Detail;
-  draw();
-});
-
 centerSelect.addEventListener("change", () => {
   params.center = centerSelect.value as CenterName;
   draw();
@@ -219,7 +214,8 @@ $<HTMLButtonElement>("shuffle-all").addEventListener("click", () => {
   do params.chladniM = randomSlider("chladniM");
   while (params.chladniM === params.chladniN);
   params.petalTip = randomItem(["pointed", "round"] as const);
-  params.detail = randomItem([0, 1, 2] as const);
+  params.innerOutline = randomItem([true, false]);
+  params.dots = randomItem([true, false]);
   params.waveDepth = randomSlider("waveDepth");
   params.borderSpacing = randomItem([true, false]);
   params.seed = randomInt(0, 99999);

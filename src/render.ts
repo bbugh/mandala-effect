@@ -1,5 +1,5 @@
 import { type CenterName, drawCenter } from "./geometry/centers";
-import { DEFAULT_MOTIFS, type Detail, legibleRepeats, MOTIFS, type MotifName, type PetalTip } from "./geometry/motifs";
+import { DEFAULT_MOTIFS, legibleRepeats, MOTIFS, type MotifName, type PetalTip } from "./geometry/motifs";
 import { ringRadii, type Spacing } from "./geometry/rings";
 import { circle } from "./geometry/svg";
 import { createRng, pick } from "./rng";
@@ -20,7 +20,8 @@ export interface MandalaParams {
   lineWeight: number;
   rings: RingSpec[];
   petalTip: PetalTip;
-  detail: Detail;
+  innerOutline: boolean;
+  dots: boolean;
   waveDepth: number;
   /** Sri Yantra center point. */
   bindu: boolean;

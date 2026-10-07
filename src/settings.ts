@@ -12,7 +12,7 @@ export function settingsToText(params: MandalaParams): string {
 // URL-safe base64, for example "1hW3Uq0d7xQ5n2aLhA". A new layout gets a new version character,
 // and codeToData keeps reading every earlier version.
 
-const CODE_VERSION = "1";
+const CODE_VERSION = "2";
 const BASE64URL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
 /** Highest variation number a link can store. */
@@ -21,7 +21,7 @@ export const MAX_SEED = 99999;
 const CENTERS: CenterName[] = ["flowerOfLife", "seedOfLife", "phyllotaxis", "sriYantra", "chladni", "cymatics"];
 const MOTIFS: MotifName[] = ["lotus", "scallops", "flowerBand", "lattice", "roseBraid", "dots", "cymatics"];
 
-/** Each field of version 1, in order: how to turn the value into a whole number, and how many bits it uses. */
+/** Each field of a code version, in order: how to turn the value into a whole number, and how many bits it uses. */
 interface Field {
   bits: number;
   get: (params: MandalaParams) => number;
@@ -36,13 +36,14 @@ const weightSteps = steps(0.5, 0.25);
 const contrastSteps = steps(0, 0.1);
 const waveSteps = steps(0.1, 0.02);
 
-const flag = (name: "bindu" | "borderSpacing" | "minDetail"): Field => ({
+const flag = (name: "bindu" | "borderSpacing" | "minDetail" | "innerOutline" | "dots"): Field => ({
   bits: 1,
   get: (p) => (p[name] ? 1 : 0),
   set: (d, v) => (d[name] = v === 1),
 });
 
-const V1_FIELDS: Field[] = [
+/** Fields shared by every version, before the inner outline and dots settings. */
+const LEADING_FIELDS: Field[] = [
   { bits: 5, get: (p) => p.symmetry, set: (d, v) => (d.symmetry = v) },
   { bits: 1, get: (p) => (p.spacing === "even" ? 1 : 0), set: (d, v) => (d.spacing = v ? "even" : "golden") },
   { bits: 3, get: (p) => CENTERS.indexOf(p.center), set: (d, v) => (d.center = CENTERS[v]) },
@@ -52,19 +53,41 @@ const V1_FIELDS: Field[] = [
   { bits: 4, get: (p) => weightSteps.toInt(p.lineWeight), set: (d, v) => (d.lineWeight = weightSteps.fromInt(v)) },
   { bits: 5, get: (p) => contrastSteps.toInt(p.lineContrast), set: (d, v) => (d.lineContrast = contrastSteps.fromInt(v)) },
   { bits: 1, get: (p) => (p.petalTip === "round" ? 1 : 0), set: (d, v) => (d.petalTip = v ? "round" : "pointed") },
-  { bits: 2, get: (p) => p.detail, set: (d, v) => (d.detail = v) },
+];
+
+/** Fields shared by every version, after the inner outline and dots settings. */
+const TRAILING_FIELDS: Field[] = [
   { bits: 5, get: (p) => waveSteps.toInt(p.waveDepth), set: (d, v) => (d.waveDepth = waveSteps.fromInt(v)) },
   flag("bindu"),
   flag("borderSpacing"),
   flag("minDetail"),
 ];
 
+/** Version 1 stored 1 detail setting: 0 outline only, 1 inner outline, 2 inner outline and dots. */
+const V1_FIELDS: Field[] = [
+  ...LEADING_FIELDS,
+  {
+    bits: 2,
+    get: () => 0,
+    set: (d, v) => {
+      d.innerOutline = v >= 1;
+      d.dots = v === 2;
+    },
+  },
+  ...TRAILING_FIELDS,
+];
+
+/** Version 2 stores inner outline and dots as separate settings. */
+const V2_FIELDS: Field[] = [...LEADING_FIELDS, flag("innerOutline"), flag("dots"), ...TRAILING_FIELDS];
+
+const FIELDS: Record<string, Field[]> = { "1": V1_FIELDS, "2": V2_FIELDS };
+
 export function settingsToCode(params: MandalaParams): string {
   const bits: number[] = [];
   const write = (value: number, count: number) => {
     for (let i = count - 1; i >= 0; i--) bits.push((value >> i) & 1);
   };
-  for (const field of V1_FIELDS) write(field.get(params), field.bits);
+  for (const field of FIELDS[CODE_VERSION]) write(field.get(params), field.bits);
   // Rings: the count minus 1, then each ring's pattern and repeat minus 1.
   write(params.rings.length - 1, 3);
   for (const ring of params.rings) {
@@ -87,7 +110,8 @@ export function settingsToLink(params: MandalaParams, pageUrl: string): string {
 /** Reads a short code, or a link that ends with one, into a settings object for checking. */
 function codeToData(text: string): Record<string, unknown> | null {
   const code = (text.includes("#") ? text.slice(text.lastIndexOf("#") + 1) : text).trim();
-  if (code[0] !== CODE_VERSION || code.length < 2) return null;
+  const fields = FIELDS[code[0]];
+  if (!fields || code.length < 2) return null;
   const bits: number[] = [];
   for (const char of code.slice(1)) {
     const value = BASE64URL.indexOf(char);
@@ -101,7 +125,7 @@ function codeToData(text: string): Record<string, unknown> | null {
     return value;
   };
   const data: Record<string, unknown> = {};
-  for (const field of V1_FIELDS) field.set(data, read(field.bits));
+  for (const field of fields) field.set(data, read(field.bits));
   const ringCount = read(3) + 1;
   if (position + ringCount * 7 > bits.length) return null;
   data.rings = Array.from({ length: ringCount }, () => ({ motif: MOTIFS[read(3)], repeat: read(4) + 1 }));
@@ -129,7 +153,8 @@ const CHECKS: { [K in keyof MandalaParams]: (value: unknown) => boolean } = {
         MOTIF_NAMES.includes(ring?.motif) && Number.isInteger(ring?.repeat) && ring.repeat >= 1 && ring.repeat <= MAX_REPEAT,
     ),
   petalTip: oneOf(["pointed", "round"]),
-  detail: oneOf([0, 1, 2]),
+  innerOutline: boolean,
+  dots: boolean,
   waveDepth: number,
   bindu: boolean,
   borderSpacing: boolean,
@@ -152,6 +177,11 @@ export function settingsFromText(text: string, current: MandalaParams): MandalaP
   }
   if (typeof data !== "object" || data === null || Array.isArray(data)) return null;
   const input = data as Record<string, unknown>;
+  // Settings text from before version 2 has 1 detail setting: 0 outline only, 1 inner outline, 2 inner outline and dots.
+  if ([0, 1, 2].includes(input.detail as number) && !("innerOutline" in input) && !("dots" in input)) {
+    input.innerOutline = (input.detail as number) >= 1;
+    input.dots = input.detail === 2;
+  }
   const result = { ...current, rings: current.rings.map((ring) => ({ ...ring })) };
   let found = 0;
   for (const key of Object.keys(CHECKS) as (keyof MandalaParams)[]) {

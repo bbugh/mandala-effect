@@ -13,7 +13,8 @@ const params: MandalaParams = {
   lineContrast: 1,
   rings: autoRings(108, 5, 12, "golden"),
   petalTip: "pointed",
-  detail: 1,
+  innerOutline: true,
+  dots: false,
   waveDepth: 0.36,
   bindu: true,
   borderSpacing: true,
@@ -23,7 +24,7 @@ const params: MandalaParams = {
 
 describe("settings text", () => {
   test("copying and pasting restores every setting", () => {
-    const changed: MandalaParams = { ...params, symmetry: 9, spacing: "even", center: "seedOfLife", detail: 2 };
+    const changed: MandalaParams = { ...params, symmetry: 9, spacing: "even", center: "seedOfLife", innerOutline: false, dots: true };
     expect(settingsFromText(settingsToText(changed), params)).toEqual(changed);
   });
 
@@ -43,7 +44,7 @@ describe("settings text", () => {
   test("a link restores every setting", () => {
     const changed: MandalaParams = { ...params, symmetry: 9, center: "sriYantra", rings: [{ motif: "flowerBand", repeat: 4 }], minDetail: false };
     const link = settingsToLink(changed, "http://brianbugh.me/mandala-effect/#old");
-    expect(link).toMatch(/^http:\/\/brianbugh\.me\/mandala-effect\/#1[A-Za-z0-9_-]+$/);
+    expect(link).toMatch(/^http:\/\/brianbugh\.me\/mandala-effect\/#2[A-Za-z0-9_-]+$/);
     expect(settingsFromText(link, params)).toEqual(changed);
   });
 
@@ -60,7 +61,8 @@ describe("settings text", () => {
       lineContrast: 2,
       rings: Array.from({ length: 8 }, (_, i) => ({ motif: i % 2 ? "cymatics" : "lotus", repeat: i % 2 ? 12 : 1 })),
       petalTip: "round",
-      detail: 2,
+      innerOutline: false,
+      dots: true,
       waveDepth: 0.5,
       bindu: false,
       borderSpacing: false,
@@ -69,6 +71,19 @@ describe("settings text", () => {
     const link = settingsToLink(changed, "http://brianbugh.me/mandala-effect/");
     expect(link.length).toBeLessThan(70);
     expect(settingsFromText(link, params)).toEqual(changed);
+  });
+
+  test("a version 1 link opens with its detail setting as inner outline and dots", () => {
+    const link = (code: string) => `http://brianbugh.me/mandala-effect/#${code}`;
+    expect(settingsFromText(link("1YBqAGxFBuhKmRZAw"), params)).toEqual({ ...params, innerOutline: false, dots: false });
+    expect(settingsFromText(link("1YBqAGxFFuhKmRZAw"), params)).toEqual({ ...params, innerOutline: true, dots: false });
+    expect(settingsFromText(link("1YBqAGxFJuhKmRZAw"), params)).toEqual({ ...params, innerOutline: true, dots: true });
+  });
+
+  test("settings text from before version 2 opens with its detail setting as inner outline and dots", () => {
+    expect(settingsFromText('{"detail": 0}', params)).toMatchObject({ innerOutline: false, dots: false });
+    expect(settingsFromText('{"detail": 1}', { ...params, innerOutline: false })).toMatchObject({ innerOutline: true, dots: false });
+    expect(settingsFromText('{"detail": 2}', params)).toMatchObject({ innerOutline: true, dots: true });
   });
 
   test("a code with an unknown version is rejected", () => {

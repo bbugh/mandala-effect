@@ -29,12 +29,12 @@ export const DEFAULT_MOTIFS: readonly MotifName[] = ["lotus", "scallops", "latti
 
 export type PetalTip = "pointed" | "round";
 
-/** 0: outline only. 1: adds an inner outline. 2: adds an inner outline and dots. */
-export type Detail = 0 | 1 | 2;
-
 export interface RingStyle {
   petalTip: PetalTip;
-  detail: Detail;
+  /** Adds an inner outline inside each petal, arch, lattice diamond, and braid wave. */
+  innerOutline: boolean;
+  /** Adds dots to each ring pattern. */
+  dots: boolean;
   /** Rose braid wave height as a fraction of the ring width. */
   waveDepth: number;
   chladniN: number;
@@ -145,8 +145,8 @@ function lotus({ r1, r2, count, offset, clip, style }: RingContext): MotifOutput
     const a = i * step + (offset ? w : 0);
     // The petal's base starts at the inner border line.
     out.main.push(petal(a, clip[0], r2 - h * 0.04, w, style.petalTip));
-    if (style.detail >= 1 && out.large(r1 * w * 0.55)) out.detail.push(petal(a, r1, r1 + h * 0.62, w * 0.55, style.petalTip));
-    if (style.detail >= 2) out.dot(polar(r1 + h * 0.78, a), h * 0.05);
+    if (style.innerOutline && out.large(r1 * w * 0.55)) out.detail.push(petal(a, r1, r1 + h * 0.62, w * 0.55, style.petalTip));
+    if (style.dots) out.dot(polar(r1 + h * 0.78, a), h * 0.05);
   }
   return out.output();
 }
@@ -173,8 +173,8 @@ function scallops({ r1, r2, count, offset, style }: RingContext): MotifOutput {
   for (let i = 0; i < count; i++) {
     const a = i * step + shift;
     out.main.push(arch(a, h * 0.92));
-    if (style.detail >= 1 && out.large(h * 0.37)) out.detail.push(arch(a, h * 0.55));
-    if (style.detail >= 2) out.dot(polar(r1 + h * 0.74, a + step / 2), h * 0.06);
+    if (style.innerOutline && out.large(h * 0.37)) out.detail.push(arch(a, h * 0.55));
+    if (style.dots) out.dot(polar(r1 + h * 0.74, a + step / 2), h * 0.06);
   }
   return out.output();
 }
@@ -184,7 +184,7 @@ function scallops({ r1, r2, count, offset, style }: RingContext): MotifOutput {
  * repeated around the ring and masked by the ring. Circle centers are on a hexagonal grid with 1 row on
  * the ring's center line, rows sqrt(3)/2 × spacing apart, and alternate rows shifted by half a step.
  * Every circle's radius equals the spacing. The grid continues past the ring on both sides, and the
- * mask cuts it off at the inner edges of the border lines. The detail setting does not apply.
+ * mask cuts it off at the inner edges of the border lines. The inner outline and dots settings do not apply.
  */
 function flowerBand({ r1, r2, count, offset, id, clip }: RingContext): MotifOutput {
   const mid = (r1 + r2) / 2;
@@ -216,7 +216,7 @@ function lattice({ r1, r2, count, offset, style }: RingContext): MotifOutput {
     const a = i * step + shift;
     outward.push(polar(r1, a), polar(r2, a + step / 2));
     inward.push(polar(r2, a), polar(r1, a + step / 2));
-    if (style.detail >= 1 && out.large(mid * (step / 4) * inset)) {
+    if (style.innerOutline && out.large(mid * (step / 4) * inset)) {
       // Smaller diamond inside each diamond.
       out.detail.push(
         polyline([
@@ -227,7 +227,7 @@ function lattice({ r1, r2, count, offset, style }: RingContext): MotifOutput {
         ]),
       );
     }
-    if (style.detail >= 2) out.dot(polar(mid, a), h * 0.05);
+    if (style.dots) out.dot(polar(mid, a), h * 0.05);
   }
   out.main.push(polyline(outward), polyline(inward));
   return out.output();
@@ -250,8 +250,8 @@ function roseBraid({ r1, r2, count, offset, style }: RingContext): MotifOutput {
   };
   const amplitude = h * style.waveDepth;
   out.main.push(curve(amplitude), curve(-amplitude));
-  if (style.detail >= 1 && out.large(amplitude * 0.5)) out.detail.push(curve(amplitude * 0.5), curve(-amplitude * 0.5));
-  if (style.detail >= 2) {
+  if (style.innerOutline && out.large(amplitude * 0.5)) out.detail.push(curve(amplitude * 0.5), curve(-amplitude * 0.5));
+  if (style.dots) {
     for (let i = 0; i < 2 * count; i++) {
       out.dot(polar(mid, (i * Math.PI) / count + shift + Math.PI / (2 * count)), h * 0.05);
     }
@@ -269,8 +269,10 @@ function dots({ r1, r2, count, offset, style }: RingContext): MotifOutput {
   for (let i = 0; i < count; i++) {
     const a = i * step + shift;
     out.main.push(circle(...polar(mid, a), big));
-    if (style.detail >= 1) out.dot(polar(mid, a), big * 0.45);
-    if (style.detail >= 2) out.dot(polar(mid, a + step / 2), big * 0.25);
+    if (style.dots) {
+      out.dot(polar(mid, a), big * 0.45);
+      out.dot(polar(mid, a + step / 2), big * 0.25);
+    }
   }
   return out.output();
 }
