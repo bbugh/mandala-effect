@@ -101,7 +101,27 @@ function joinSegments(segments: [Point, Point][]): Point[][] {
   return lines;
 }
 
-const fmt = (n: number) => Number(n.toFixed(2)).toString();
+// 1 decimal place is 0.02 mm when the mandala is printed 8 inches wide.
+const fmt = (n: number) => Number(n.toFixed(1)).toString();
+
+/** Distance, in drawing units, between the points kept on each traced line before smoothing. */
+const POINT_SPACING = 1.5;
+
+/** Keeps points about POINT_SPACING apart along the line, plus its first and last points. Even spacing keeps the smoothed curve free of kinks. */
+function resample(line: Point[]): Point[] {
+  if (line.length < 3) return line;
+  const kept: Point[] = [line[0]];
+  let travelled = 0;
+  for (let i = 1; i < line.length - 1; i++) {
+    travelled += Math.hypot(line[i][0] - line[i - 1][0], line[i][1] - line[i - 1][1]);
+    if (travelled >= POINT_SPACING) {
+      kept.push(line[i]);
+      travelled = 0;
+    }
+  }
+  kept.push(line[line.length - 1]);
+  return kept;
+}
 
 /**
  * Converts polylines into SVG path data. With smooth set, each polyline becomes a
@@ -110,7 +130,8 @@ const fmt = (n: number) => Number(n.toFixed(2)).toString();
  */
 export function linesToPath(lines: Point[][], smooth: boolean): string {
   return lines
-    .map((line) => {
+    .map((traced) => {
+      const line = resample(traced);
       const start = `M${fmt(line[0][0])} ${fmt(line[0][1])}`;
       if (!smooth || line.length < 3) {
         return start + line.slice(1).map(([x, y]) => `L${fmt(x)} ${fmt(y)}`).join("");
