@@ -2,16 +2,6 @@
 
 export type Rng = () => number;
 
-/** FNV-1a 32-bit hash. */
-export function hashString(text: string): number {
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < text.length; i++) {
-    hash ^= text.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return hash >>> 0;
-}
-
 /** Mulberry32 generator, returns values in [0, 1). */
 export function createRng(seed: number): Rng {
   let state = seed >>> 0;
