@@ -16,7 +16,7 @@ import { ringRadii, type Spacing } from "./geometry/rings";
 import { downloadPng, downloadSvg } from "./export";
 import { Renderer } from "./gl";
 import { MAX_SEED, settingsFromText, settingsToCode, settingsToLink } from "./settings";
-import { autoRings, DRAWING_SIZE, type MandalaParams, mandalaLayers, RADIUS, type RingSpec } from "./render";
+import { autoRings, BORDER_SPACING_STEPS, DRAWING_SIZE, type MandalaParams, mandalaLayers, RADIUS, type RingSpec } from "./render";
 
 const MAX_RINGS = 8;
 
@@ -31,7 +31,7 @@ const params: MandalaParams = {
   rings: autoRings(108, 5, "golden"),
   bindu: true,
   borderThickness: 1,
-  borderSpacing: true,
+  borderSpacing: 1,
   /** Always on; at screen and print size the unsmoothed lines looked the same. */
   smooth: true,
   minDetail: false,
@@ -236,7 +236,7 @@ canvas.addEventListener("click", (event) => {
 
 // Line finish checkboxes
 
-const finishFields = ["borderSpacing", "minDetail", "bindu"] as const;
+const finishFields = ["minDetail", "bindu"] as const;
 
 for (const field of finishFields) {
   $<HTMLInputElement>(field).addEventListener("change", (event) => {
@@ -260,6 +260,8 @@ function syncControls() {
   for (const radio of spacingRadios) radio.checked = radio.value === params.spacing;
   centerSelect.value = params.center;
   for (const field of finishFields) $<HTMLInputElement>(field).checked = params[field];
+  borderSpacingInput.value = String(Math.max(0, BORDER_SPACING_STEPS.indexOf(params.borderSpacing)));
+  $<HTMLOutputElement>("borderSpacing-value").textContent = params.borderSpacing ? String(params.borderSpacing) : "Off";
 
   const usesCymatics = params.center === "chladni" || params.center === "cymatics";
   // Settings that the selected center does not use are hidden.
@@ -315,6 +317,14 @@ $<HTMLInputElement>("ringCount").addEventListener("input", (event) => {
   draw();
 });
 
+// The border spacing slider has 1 position for each of BORDER_SPACING_STEPS.
+const borderSpacingInput = $<HTMLInputElement>("borderSpacing");
+borderSpacingInput.max = String(BORDER_SPACING_STEPS.length - 1);
+borderSpacingInput.addEventListener("input", () => {
+  params.borderSpacing = BORDER_SPACING_STEPS[Number(borderSpacingInput.value)];
+  draw();
+});
+
 const spacingRadios = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="spacing"]'));
 for (const radio of spacingRadios) {
   radio.addEventListener("change", () => {
@@ -342,6 +352,8 @@ const randomSlider = (id: string) => {
 function shuffleLines() {
   params.lineWeight = randomSlider("lineWeight");
   params.borderThickness = randomSlider("borderThickness");
+  // Single borders half of the time, and otherwise a random spacing.
+  params.borderSpacing = randomItem([true, false]) ? randomItem(BORDER_SPACING_STEPS.slice(1)) : 0;
 }
 
 function shuffleCenter() {
@@ -359,12 +371,11 @@ function shuffleCenter() {
 }
 
 /**
- * Picks the ring spacing, the double borders, the number of rings, and every ring's settings. The seed
+ * Picks the ring spacing, the number of rings, and every ring's settings. The seed
  * also chooses the settings of rings added later with the Number of rings slider.
  */
 function shuffleRings() {
   params.spacing = randomItem(["golden", "even"] as const);
-  params.borderSpacing = randomItem([true, false]);
   params.seed = randomInt(0, MAX_SEED);
   params.rings = autoRings(params.seed, randomSlider("ringCount"), params.spacing, MOTIF_NAMES, true);
   stash = [];

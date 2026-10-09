@@ -2,13 +2,13 @@
 
 import { CENTER_LABELS, type CenterName } from "./geometry/centers";
 import { DEFAULT_RING_OPTIONS, DOT_STEPS, INNER_OUTLINE_STEPS, MAX_COUNT, MOTIF_NAMES, type MotifName, type RingOptions } from "./geometry/motifs";
-import type { MandalaParams, RingSpec } from "./render";
+import { BORDER_SPACING_STEPS, type MandalaParams, type RingSpec } from "./render";
 
 // Short link code: a version character followed by the settings packed into bits and written in
 // URL-safe base64, for example "4hW3Uq0d7xQ5n2aLhA". A new layout gets a new version character,
 // and codeToData keeps reading every earlier version.
 
-const CODE_VERSION = "6";
+const CODE_VERSION = "7";
 const BASE64URL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
 /** Highest variation number a link can store. */
@@ -65,7 +65,15 @@ const SHARED_FIELDS: Field[] = [
   { bits: 5, get: (p) => contrastSteps.toInt(p.borderThickness), set: (d, v) => (d.borderThickness = contrastSteps.fromInt(v)) },
 ];
 
+/** Versions 1 to 6 store double borders as on or off; settingsFromText converts it to a border spacing. */
 const FINAL_FIELDS: Field[] = [flag("bindu"), flag("borderSpacing"), flag("minDetail")];
+
+/** Version 7 stores the position of the border spacing slider. */
+const BORDER_SPACING_FIELD: Field = {
+  bits: 5,
+  get: (p) => Math.max(0, BORDER_SPACING_STEPS.indexOf(p.borderSpacing)),
+  set: (d, v) => (d.borderSpacing = BORDER_SPACING_STEPS[v]),
+};
 
 /** Versions 1 to 3 stored the tips, inner outline, dots, and wave depth once for every ring. */
 const LEGACY_TIP = legacy(1, (d, v) => (d.petalTip = v ? "round" : "pointed"));
@@ -89,6 +97,8 @@ const FIELDS: Record<string, Field[]> = {
   "5": [ROTATIONS_FIELD, ...SHARED_FIELDS, ...FINAL_FIELDS],
   // Version 6 stores each ring's inner outline thickness and dot size instead of on or off.
   "6": [ROTATIONS_FIELD, ...SHARED_FIELDS, ...FINAL_FIELDS],
+  // Version 7 stores the border spacing instead of double borders on or off.
+  "7": [ROTATIONS_FIELD, ...SHARED_FIELDS, flag("bindu"), BORDER_SPACING_FIELD, flag("minDetail")],
 };
 
 /** Each ring field of a code version, after the ring's pattern. */
@@ -142,6 +152,7 @@ const RING_FIELDS: Record<string, RingField[]> = {
     ...MODE_FIELDS,
   ],
 };
+RING_FIELDS["7"] = RING_FIELDS["6"];
 
 /** Converts rings stored with a multiplier (versions 1 and 2, and older settings text) into copy counts. */
 function ringsFromMultipliers(rings: Record<string, unknown>[], symmetry: number): Record<string, unknown>[] {
@@ -264,7 +275,7 @@ const CHECKS: { [K in keyof MandalaParams]: (value: unknown) => boolean } = {
         RING_OPTION_NAMES.every((name) => OPTION_CHECKS[name](ring[name])),
     ),
   bindu: boolean,
-  borderSpacing: boolean,
+  borderSpacing: (value) => BORDER_SPACING_STEPS.includes(value as number),
   smooth: boolean,
   minDetail: boolean,
 };
@@ -303,6 +314,8 @@ export function settingsFromText(text: string, current: MandalaParams): MandalaP
     input.rings = ringsFromMultipliers(input.rings, input.symmetry);
   }
   detailFlagsToSizes(input);
+  // Links from before version 7 store double borders as on or off. On is the standard spacing.
+  if (typeof input.borderSpacing === "boolean") input.borderSpacing = input.borderSpacing ? 1 : 0;
   fillRingOptions(input);
   const result = { ...current, rings: current.rings.map((ring) => ({ ...ring })) };
   let found = 0;

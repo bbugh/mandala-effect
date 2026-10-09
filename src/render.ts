@@ -24,8 +24,11 @@ export interface MandalaParams {
   bindu: boolean;
   /** 0: every line uses lineWeight. Higher values make borders thicker and details thinner. */
   borderThickness: number;
-  /** Double-line ring borders with a space between each border and its pattern. */
-  borderSpacing: boolean;
+  /**
+   * 0: single-line ring borders. Otherwise double-line ring borders, with a space between the 2 lines and
+   * between each border and its pattern, as a multiple of the standard space (1). One of BORDER_SPACING_STEPS.
+   */
+  borderSpacing: number;
   /** Smooth cymatics lines into curves on a finer grid. */
   smooth: boolean;
   /** Leave out details smaller than MIN_DETAIL. */
@@ -36,6 +39,9 @@ export const RADIUS = 500;
 const MARGIN = 24;
 /** Width and height of the drawing in drawing units. */
 export const DRAWING_SIZE = 2 * (RADIUS + MARGIN);
+
+/** Positions of the border spacing slider: 0, then 0.1 to 2 in steps of 0.1. The leftmost position, 0, draws single borders. */
+export const BORDER_SPACING_STEPS: readonly number[] = Array.from({ length: 21 }, (_, k) => Number((k * 0.1).toFixed(1)));
 
 /** Rose braid wave depths that the page's slider offers: 0.1 to 0.5 in steps of 0.02. */
 const WAVE_DEPTHS = Array.from({ length: 21 }, (_, k) => Number((0.1 + k * 0.02).toFixed(2)));
@@ -117,9 +123,10 @@ export function mandalaLayers(params: MandalaParams): Layer[] {
   const borderWeight = weight * (1 + 0.8 * border);
   const outerWeight = weight * (1 + 1.4 * border);
   // Distance between the 2 lines of a double border, and between a border and its pattern.
-  const borderGap = params.borderSpacing ? borderWeight * 2 + 3 : 0;
+  const spacing = params.borderSpacing;
+  const borderGap = spacing ? (borderWeight * 2 + 3) * spacing : 0;
   // The pattern gap is measured between the edges of the strokes, so it stays the same at every line weight.
-  const patternGap = params.borderSpacing ? borderGap / 2 + borderWeight / 2 + weight / 2 + 3 : 0;
+  const patternGap = spacing ? borderGap / 2 + borderWeight / 2 + weight / 2 + 3 * spacing : 0;
 
   const next = new Map<string, Layer>();
   const layer = (key: string, build: () => Stroke[]) => {
@@ -189,7 +196,7 @@ export function mandalaLayers(params: MandalaParams): Layer[] {
     layer(JSON.stringify(["borders", borderRadii, borderGap, borderWeight, outerWeight]), () => {
       const borders = new Path();
       for (const r of borderRadii) {
-        if (params.borderSpacing) {
+        if (spacing) {
           borders.circle(0, 0, r - borderGap / 2);
           borders.circle(0, 0, r + borderGap / 2);
         } else borders.circle(0, 0, r);

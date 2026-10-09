@@ -14,7 +14,7 @@ const params: MandalaParams = {
   borderThickness: 1,
   rings: autoRings(108, 5, "golden"),
   bindu: true,
-  borderSpacing: true,
+  borderSpacing: 1,
   smooth: true,
   minDetail: false,
 };
@@ -27,7 +27,7 @@ describe("settings links", () => {
   test("a link restores every setting", () => {
     const changed: MandalaParams = { ...params, rotations: 9, center: "sriYantra", rings: [{ motif: "flowerBand", count: 37, ...DEFAULT_RING_OPTIONS }], minDetail: false };
     const link = settingsToLink(changed, "http://brianbugh.me/mandala-effect/#old");
-    expect(link).toMatch(/^http:\/\/brianbugh\.me\/mandala-effect\/#6[A-Za-z0-9_-]+$/);
+    expect(link).toMatch(/^http:\/\/brianbugh\.me\/mandala-effect\/#7[A-Za-z0-9_-]+$/);
     expect(settingsFromText(link, params)).toEqual(changed);
   });
 
@@ -53,7 +53,7 @@ describe("settings links", () => {
         cymaticsM: i % 2 ? 1 : 12,
       })),
       bindu: false,
-      borderSpacing: false,
+      borderSpacing: 2,
       minDetail: true,
     };
     const link = settingsToLink(changed, "http://brianbugh.me/mandala-effect/");
