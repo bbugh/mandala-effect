@@ -337,13 +337,17 @@ function shuffleLines() {
 }
 
 function shuffleCenter() {
-  params.center = randomItem(Object.keys(CENTER_LABELS) as CenterName[]);
-  params.bindu = randomItem([true, false]);
-  params.rotations = randomSlider("rotations");
-  params.chladniN = randomSlider("chladniN");
-  // n = m = 1 is the only pair with no lines on the Chladni plate center.
-  do params.chladniM = randomSlider("chladniM");
-  while (params.center === "chladni" && params.chladniN === 1 && params.chladniM === 1);
+  // Always a different center from the current one.
+  params.center = randomItem((Object.keys(CENTER_LABELS) as CenterName[]).filter((name) => name !== params.center));
+  // Settings that the chosen center does not use keep their values.
+  if (params.center === "sriYantra") params.bindu = randomItem([true, false]);
+  if (params.center === "cymatics") params.rotations = randomSlider("rotations");
+  if (params.center === "chladni" || params.center === "cymatics") {
+    params.chladniN = randomSlider("chladniN");
+    // n = m = 1 is the only pair with no lines on the Chladni plate center.
+    do params.chladniM = randomSlider("chladniM");
+    while (params.center === "chladni" && params.chladniN === 1 && params.chladniM === 1);
+  }
 }
 
 /**
