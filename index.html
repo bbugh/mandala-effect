@@ -36,6 +36,11 @@
             <label>Border spacing <output id="borderSpacing-value"></output>
               <input id="borderSpacing" type="range" min="0" step="1" />
             </label>
+            <fieldset class="radios">
+              <legend>Border ratio</legend>
+              <label class="check"><input type="radio" name="spacing" value="golden" /> Golden</label>
+              <label class="check"><input type="radio" name="spacing" value="even" /> Uniform</label>
+            </fieldset>
           </section>
 
           <section>
@@ -68,11 +73,6 @@
             <label>Number of rings <output id="ringCount-value"></output>
               <input id="ringCount" type="range" min="1" max="8" step="1" />
             </label>
-            <fieldset class="radios">
-              <legend>Ring spacing</legend>
-              <label class="check"><input type="radio" name="spacing" value="golden" /> Golden ratio</label>
-              <label class="check"><input type="radio" name="spacing" value="even" /> Uniform</label>
-            </fieldset>
             <div id="ring-rows" class="rings"></div>
           </section>
         </div>

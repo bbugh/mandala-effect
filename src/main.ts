@@ -352,6 +352,7 @@ const randomSlider = (id: string) => {
 function shuffleLines() {
   params.lineWeight = randomSlider("lineWeight");
   params.borderThickness = randomSlider("borderThickness");
+  params.spacing = randomItem(["golden", "even"] as const);
   // Single borders half of the time, and otherwise a random spacing.
   params.borderSpacing = randomItem([true, false]) ? randomItem(BORDER_SPACING_STEPS.slice(1)) : 0;
 }
@@ -371,11 +372,10 @@ function shuffleCenter() {
 }
 
 /**
- * Picks the ring spacing, the number of rings, and every ring's settings. The seed
+ * Picks the number of rings, and every ring's settings. The seed
  * also chooses the settings of rings added later with the Number of rings slider.
  */
 function shuffleRings() {
-  params.spacing = randomItem(["golden", "even"] as const);
   params.seed = randomInt(0, MAX_SEED);
   params.rings = autoRings(params.seed, randomSlider("ringCount"), params.spacing, MOTIF_NAMES, true);
   stash = [];
