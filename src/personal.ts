@@ -18,7 +18,7 @@ export function personalMandala(
   name: string,
   birth: BirthDate,
   birthText: string,
-  finish: Pick<MandalaParams, "lineContrast" | "borderSpacing" | "smooth" | "minDetail">,
+  finish: Pick<MandalaParams, "borderThickness" | "borderSpacing" | "smooth" | "minDetail">,
 ): { params: MandalaParams; numbers: NumerologyProfile } {
   const numbers = profile(name, birth);
   const symmetry = symmetryFromLifePath(numbers.lifePath);
@@ -45,7 +45,7 @@ export function personalMandala(
       lineWeight: 1.5,
       rings,
       bindu: true,
-      lineContrast: finish.lineContrast,
+      borderThickness: finish.borderThickness,
       borderSpacing: finish.borderSpacing,
       smooth: finish.smooth,
       minDetail: finish.minDetail,

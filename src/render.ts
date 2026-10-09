@@ -1,5 +1,5 @@
 import { type CenterName, type CenterOptions, drawCenter } from "./geometry/centers";
-import { DEFAULT_MOTIFS, DEFAULT_RING_OPTIONS, legibleCounts, minCount, MOTIFS, type MotifName, type RingContext, type RingOptions } from "./geometry/motifs";
+import { DEFAULT_MOTIFS, DEFAULT_RING_OPTIONS, DOT_LINE, DOT_STEPS, INNER_OUTLINE_STEPS, legibleCounts, minCount, MOTIFS, type MotifName, type RingContext, type RingOptions } from "./geometry/motifs";
 import { type Disk, Path } from "./geometry/pen";
 import { ringRadii, type Spacing } from "./geometry/rings";
 import { createRng, pick } from "./rng";
@@ -23,7 +23,7 @@ export interface MandalaParams {
   /** Sri Yantra center point. */
   bindu: boolean;
   /** 0: every line uses lineWeight. Higher values make borders thicker and details thinner. */
-  lineContrast: number;
+  borderThickness: number;
   /** Double-line ring borders with a space between each border and its pattern. */
   borderSpacing: boolean;
   /** Smooth cymatics lines into curves on a finer grid. */
@@ -68,8 +68,9 @@ export function autoRings(
     const options: RingOptions = randomOptions
       ? {
           petalTip: pick(optionRng, ["pointed", "round"] as const),
-          innerOutline: pick(optionRng, [true, false]),
-          dots: pick(optionRng, [true, false]),
+          // Each is off half of the time, and otherwise at a random position of its slider.
+          innerOutline: pick(optionRng, [true, false]) ? pick(optionRng, INNER_OUTLINE_STEPS.slice(1)) : 0,
+          dots: pick(optionRng, [true, false]) ? pick(optionRng, DOT_STEPS.slice(1)) : 0,
           waveDepth: pick(optionRng, WAVE_DEPTHS),
           cymaticsN: pick(modeRng, CYMATICS_MODES),
           cymaticsM: pick(modeRng, CYMATICS_MODES),
@@ -112,10 +113,9 @@ let cache = new Map<string, Layer>();
 export function mandalaLayers(params: MandalaParams): Layer[] {
   const radii = ringRadii(RADIUS, params.rings.length, params.spacing);
   const weight = params.lineWeight;
-  const contrast = params.lineContrast;
-  const borderWeight = weight * (1 + 0.8 * contrast);
-  const detailWeight = weight * (1 - 0.4 * contrast);
-  const outerWeight = weight * (1 + 1.4 * contrast);
+  const border = params.borderThickness;
+  const borderWeight = weight * (1 + 0.8 * border);
+  const outerWeight = weight * (1 + 1.4 * border);
   // Distance between the 2 lines of a double border, and between a border and its pattern.
   const borderGap = params.borderSpacing ? borderWeight * 2 + 3 : 0;
   // The pattern gap is measured between the edges of the strokes, so it stays the same at every line weight.
@@ -170,13 +170,15 @@ export function mandalaLayers(params: MandalaParams): Layer[] {
       },
     };
     layers.push(
-      layer(JSON.stringify([spec.motif, ring, weight, detailWeight]), () => {
+      layer(JSON.stringify([spec.motif, ring, weight]), () => {
         const main = new Path();
         const detail = new Path();
-        MOTIFS[spec.motif](ring, { main, detail });
+        const dots = new Path();
+        MOTIFS[spec.motif](ring, { main, detail, dots });
         return [
           { kind: "lines", path: main, width: weight, mask: clip },
-          { kind: "lines", path: detail, width: detailWeight, mask: clip },
+          { kind: "lines", path: detail, width: weight * spec.innerOutline, mask: clip },
+          { kind: "lines", path: dots, width: weight * DOT_LINE, mask: clip },
         ];
       }),
     );

@@ -303,7 +303,8 @@ label:has(:disabled) :disabled {
 }
 
 .ring-editor .options label.wave,
-.ring-editor .options label.mode {
+.ring-editor .options label.mode,
+.ring-editor .options label.steps {
   flex: 1 1 100%;
   white-space: normal;
 }

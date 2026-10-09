@@ -30,10 +30,13 @@ export type PetalTip = "pointed" | "round";
 /** Settings that each ring has for itself. */
 export interface RingOptions {
   petalTip: PetalTip;
-  /** Adds an inner outline inside each petal, arch, lattice diamond, and braid wave. */
-  innerOutline: boolean;
-  /** Adds dots to the ring pattern. */
-  dots: boolean;
+  /**
+   * Thickness of the inner outline inside each petal, arch, lattice diamond, and braid wave, as a fraction of
+   * the main line thickness. 0 draws no inner outline.
+   */
+  innerOutline: number;
+  /** Size of the ring's decoration dots compared to their standard size. 0 draws no dots. */
+  dots: number;
   /** Rose braid wave height as a fraction of the ring width. */
   waveDepth: number;
   /** Cymatics ring modes n and m, 1 to 12. */
@@ -41,7 +44,14 @@ export interface RingOptions {
   cymaticsM: number;
 }
 
-export const DEFAULT_RING_OPTIONS: RingOptions = { petalTip: "pointed", innerOutline: true, dots: false, waveDepth: 0.36, cymaticsN: 3, cymaticsM: 5 };
+/** The positions of the Inner outlines slider. The first position, 0, turns the inner outlines off. */
+export const INNER_OUTLINE_STEPS = [0, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1] as const;
+/** The positions of the Dots slider. The first position, 0, turns the dots off. */
+export const DOT_STEPS = [0, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const;
+/** Thickness of the dots' outline as a fraction of the main line thickness. */
+export const DOT_LINE = 0.6;
+
+export const DEFAULT_RING_OPTIONS: RingOptions = { petalTip: "pointed", innerOutline: 0.6, dots: 0, waveDepth: 0.36, cymaticsN: 3, cymaticsM: 5 };
 
 /** The ring options that change each motif's drawing. The page shows only these for a ring. */
 export const MOTIF_OPTIONS: Record<MotifName, readonly (keyof RingOptions)[]> = {
@@ -67,10 +77,11 @@ export interface RingStyle extends RingOptions {
  */
 export const MIN_DETAIL = 8;
 
-/** Where a motif draws: main outlines, and detail elements (inner outlines and dots) drawn with a thinner line. */
+/** Where a motif draws: main outlines, inner outlines, and dots. Each is drawn with its own line thickness. */
 export interface MotifPens {
   main: Pen;
   detail: Pen;
+  dots: Pen;
 }
 
 export interface RingContext {
@@ -181,9 +192,10 @@ function petal(pen: Pen, a: number, base: number, tip: number, halfWidth: number
 /** Whether a detail of this size is drawn: with minDetail on, details smaller than MIN_DETAIL are left out. */
 const large = (style: RingStyle, size: number) => !style.minDetail || size >= MIN_DETAIL;
 
-/** A detail dot, unless it is too small for minDetail. */
+/** A decoration dot of standard radius r, scaled by the ring's dot size, unless it is too small for minDetail. */
 function dot(out: MotifPens, style: RingStyle, center: P, r: number) {
-  if (large(style, r)) out.detail.circle(...center, r);
+  const size = r * style.dots;
+  if (large(style, size)) out.dots.circle(...center, size);
 }
 
 function lotus({ r1, r2, count, offset, clip, style }: RingContext, out: MotifPens) {

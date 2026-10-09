@@ -1,14 +1,14 @@
 // Settings as a short code in the page link, so a link opens the same mandala.
 
 import { CENTER_LABELS, type CenterName } from "./geometry/centers";
-import { DEFAULT_RING_OPTIONS, MAX_COUNT, MOTIF_NAMES, type MotifName, type RingOptions } from "./geometry/motifs";
+import { DEFAULT_RING_OPTIONS, DOT_STEPS, INNER_OUTLINE_STEPS, MAX_COUNT, MOTIF_NAMES, type MotifName, type RingOptions } from "./geometry/motifs";
 import type { MandalaParams, RingSpec } from "./render";
 
 // Short link code: a version character followed by the settings packed into bits and written in
 // URL-safe base64, for example "4hW3Uq0d7xQ5n2aLhA". A new layout gets a new version character,
 // and codeToData keeps reading every earlier version.
 
-const CODE_VERSION = "5";
+const CODE_VERSION = "6";
 const BASE64URL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
 /** Highest variation number a link can store. */
@@ -62,7 +62,7 @@ const SHARED_FIELDS: Field[] = [
   { bits: 4, get: (p) => p.chladniM, set: (d, v) => (d.chladniM = v) },
   { bits: 17, get: (p) => Math.min(p.seed, MAX_SEED), set: (d, v) => (d.seed = v) },
   { bits: 4, get: (p) => weightSteps.toInt(p.lineWeight), set: (d, v) => (d.lineWeight = weightSteps.fromInt(v)) },
-  { bits: 5, get: (p) => contrastSteps.toInt(p.lineContrast), set: (d, v) => (d.lineContrast = contrastSteps.fromInt(v)) },
+  { bits: 5, get: (p) => contrastSteps.toInt(p.borderThickness), set: (d, v) => (d.borderThickness = contrastSteps.fromInt(v)) },
 ];
 
 const FINAL_FIELDS: Field[] = [flag("bindu"), flag("borderSpacing"), flag("minDetail")];
@@ -87,6 +87,8 @@ const FIELDS: Record<string, Field[]> = {
   "4": [ROTATIONS_FIELD, ...SHARED_FIELDS, ...FINAL_FIELDS],
   // Version 5 also stores the cymatics modes for each ring.
   "5": [ROTATIONS_FIELD, ...SHARED_FIELDS, ...FINAL_FIELDS],
+  // Version 6 stores each ring's inner outline thickness and dot size instead of on or off.
+  "6": [ROTATIONS_FIELD, ...SHARED_FIELDS, ...FINAL_FIELDS],
 };
 
 /** Each ring field of a code version, after the ring's pattern. */
@@ -100,12 +102,29 @@ interface RingField {
 const MULTIPLIER: RingField = { bits: 4, get: () => 0, set: (r, v) => (r.repeat = v + 1) };
 const COUNT: RingField = { bits: 8, get: (r) => r.count - 1, set: (r, v) => (r.count = v + 1) };
 
+const TIP_FIELD: RingField = { bits: 1, get: (r) => (r.petalTip === "round" ? 1 : 0), set: (r, v) => (r.petalTip = v ? "round" : "pointed") };
+const WAVE_FIELD: RingField = { bits: 5, get: (r) => waveSteps.toInt(r.waveDepth), set: (r, v) => (r.waveDepth = waveSteps.fromInt(v)) };
+
+/** Versions 4 and 5 store each ring's inner outline and dots as on or off; detailFlagsToSizes converts them. */
 const RING_OPTION_FIELDS: RingField[] = [
   COUNT,
-  { bits: 1, get: (r) => (r.petalTip === "round" ? 1 : 0), set: (r, v) => (r.petalTip = v ? "round" : "pointed") },
+  TIP_FIELD,
   { bits: 1, get: (r) => (r.innerOutline ? 1 : 0), set: (r, v) => (r.innerOutline = v === 1) },
   { bits: 1, get: (r) => (r.dots ? 1 : 0), set: (r, v) => (r.dots = v === 1) },
-  { bits: 5, get: (r) => waveSteps.toInt(r.waveDepth), set: (r, v) => (r.waveDepth = waveSteps.fromInt(v)) },
+  WAVE_FIELD,
+];
+
+/** A ring field that stores the position of a slider with these steps. */
+const stepField = (name: "innerOutline" | "dots", values: readonly number[], bits: number): RingField => ({
+  bits,
+  get: (r) => Math.max(0, values.indexOf(r[name])),
+  set: (r, v) => (r[name] = values[v]),
+});
+
+/** The cymatics modes of each ring, stored from version 5. */
+const MODE_FIELDS: RingField[] = [
+  { bits: 4, get: (r) => r.cymaticsN, set: (r, v) => (r.cymaticsN = v) },
+  { bits: 4, get: (r) => r.cymaticsM, set: (r, v) => (r.cymaticsM = v) },
 ];
 
 const RING_FIELDS: Record<string, RingField[]> = {
@@ -113,10 +132,14 @@ const RING_FIELDS: Record<string, RingField[]> = {
   "2": [MULTIPLIER],
   "3": [COUNT],
   "4": RING_OPTION_FIELDS,
-  "5": [
-    ...RING_OPTION_FIELDS,
-    { bits: 4, get: (r) => r.cymaticsN, set: (r, v) => (r.cymaticsN = v) },
-    { bits: 4, get: (r) => r.cymaticsM, set: (r, v) => (r.cymaticsM = v) },
+  "5": [...RING_OPTION_FIELDS, ...MODE_FIELDS],
+  "6": [
+    COUNT,
+    TIP_FIELD,
+    stepField("innerOutline", INNER_OUTLINE_STEPS, 4),
+    stepField("dots", DOT_STEPS, 3),
+    WAVE_FIELD,
+    ...MODE_FIELDS,
   ],
 };
 
@@ -213,8 +236,8 @@ const boolean = (value: unknown) => typeof value === "boolean";
 
 const OPTION_CHECKS: { [K in keyof RingOptions]: (value: unknown) => boolean } = {
   petalTip: oneOf(["pointed", "round"]),
-  innerOutline: boolean,
-  dots: boolean,
+  innerOutline: (value) => INNER_OUTLINE_STEPS.includes(value as never),
+  dots: (value) => DOT_STEPS.includes(value as never),
   waveDepth: number,
   cymaticsN: (value) => Number.isInteger(value) && (value as number) >= 1 && (value as number) <= 12,
   cymaticsM: (value) => Number.isInteger(value) && (value as number) >= 1 && (value as number) <= 12,
@@ -228,7 +251,7 @@ const CHECKS: { [K in keyof MandalaParams]: (value: unknown) => boolean } = {
   chladniM: number,
   seed: number,
   lineWeight: number,
-  lineContrast: number,
+  borderThickness: number,
   rings: (value) =>
     Array.isArray(value) &&
     value.length > 0 &&
@@ -250,6 +273,22 @@ const CHECKS: { [K in keyof MandalaParams]: (value: unknown) => boolean } = {
  * Reads a link or short code made by settingsToLink. Fields that are missing or invalid keep their current values.
  * Returns null when the text is not settings at all.
  */
+/**
+ * Links from before version 6 store inner outlines and dots as on or off, for every ring or for each ring.
+ * An inner outline that is on gets the thickness that the border thickness gave it, 1 − 0.4 × border
+ * thickness, at the nearest slider position. Dots that are on get the standard size.
+ */
+function detailFlagsToSizes(input: Record<string, unknown>) {
+  const border = typeof input.borderThickness === "number" ? input.borderThickness : 1;
+  const thickness = INNER_OUTLINE_STEPS.slice(1).reduce((best, step) => (Math.abs(step - (1 - 0.4 * border)) < Math.abs(best - (1 - 0.4 * border)) ? step : best));
+  const convert = (options: Record<string, unknown>) => {
+    if (typeof options.innerOutline === "boolean") options.innerOutline = options.innerOutline ? thickness : 0;
+    if (typeof options.dots === "boolean") options.dots = options.dots ? 1 : 0;
+  };
+  convert(input);
+  if (Array.isArray(input.rings)) for (const ring of input.rings) if (typeof ring === "object" && ring !== null) convert(ring);
+}
+
 export function settingsFromText(text: string, current: MandalaParams): MandalaParams | null {
   const input = codeToData(text);
   if (!input) return null;
@@ -263,6 +302,7 @@ export function settingsFromText(text: string, current: MandalaParams): MandalaP
     if (!("rotations" in input)) input.rotations = input.symmetry;
     input.rings = ringsFromMultipliers(input.rings, input.symmetry);
   }
+  detailFlagsToSizes(input);
   fillRingOptions(input);
   const result = { ...current, rings: current.rings.map((ring) => ({ ...ring })) };
   let found = 0;

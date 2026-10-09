@@ -1,6 +1,8 @@
 import "./style.css";
 import { CENTER_LABELS, type CenterName } from "./geometry/centers";
 import {
+  DOT_STEPS,
+  INNER_OUTLINE_STEPS,
   MAX_COUNT,
   minCount,
   MOTIF_LABELS,
@@ -28,7 +30,7 @@ const params: MandalaParams = {
   lineWeight: 1.5,
   rings: autoRings(108, 5, "golden"),
   bindu: true,
-  lineContrast: 1,
+  borderThickness: 1,
   borderSpacing: true,
   /** Always on; at screen and print size the unsmoothed lines looked the same. */
   smooth: true,
@@ -72,14 +74,6 @@ const element = <K extends keyof HTMLElementTagNameMap>(tag: K, className = "") 
   return node;
 };
 
-const checkbox = (text: string) => {
-  const input = element("input");
-  input.type = "checkbox";
-  const label = element("label", "check");
-  label.append(input, ` ${text}`);
-  return { input, label };
-};
-
 const ringList = element("div", "ring-list");
 const ringItems = Array.from({ length: MAX_RINGS }, (_, i) => {
   const item = element("div", "ring-item");
@@ -116,8 +110,24 @@ tipSelect.add(new Option("Round tips", "round"));
 tipSelect.setAttribute("aria-label", "Tips");
 const tipLabel = element("label", "tip");
 tipLabel.append(tipSelect);
-const innerOutlineBox = checkbox("Inner outlines");
-const dotsBox = checkbox("Dots");
+/** A slider whose leftmost position turns an option off and whose other positions set its size. */
+function stepSlider(name: string, values: readonly number[]) {
+  const input = element("input");
+  input.type = "range";
+  input.min = "0";
+  input.max = String(values.length - 1);
+  input.step = "1";
+  const value = element("output");
+  const label = element("label", "steps");
+  label.append(`${name} `, value, input);
+  const show = (current: number) => {
+    input.value = String(Math.max(0, values.indexOf(current)));
+    value.textContent = current === 0 ? "Off" : String(current);
+  };
+  return { input, label, show, read: () => values[Number(input.value)] };
+}
+const innerOutlineSlider = stepSlider("Inner outlines", INNER_OUTLINE_STEPS);
+const dotsSlider = stepSlider("Dots", DOT_STEPS);
 const waveInput = element("input");
 waveInput.type = "range";
 waveInput.min = "0.1";
@@ -144,14 +154,14 @@ const modeM = modeSlider("Cymatics m");
 /** The label around each option's control, hidden when the option does not change the ring's pattern. */
 const optionLabels: Record<keyof RingOptions, HTMLLabelElement> = {
   petalTip: tipLabel,
-  innerOutline: innerOutlineBox.label,
-  dots: dotsBox.label,
+  innerOutline: innerOutlineSlider.label,
+  dots: dotsSlider.label,
   waveDepth: waveLabel,
   cymaticsN: modeN.label,
   cymaticsM: modeM.label,
 };
 const options = element("div", "options");
-options.append(tipLabel, innerOutlineBox.label, dotsBox.label, waveLabel, modeN.label, modeM.label);
+options.append(tipLabel, innerOutlineSlider.label, dotsSlider.label, waveLabel, modeN.label, modeM.label);
 
 editor.append(motifSelect, copies, options);
 ringRows.append(ringList);
@@ -166,8 +176,8 @@ function updateRing(changes: Partial<RingSpec>) {
 motifSelect.addEventListener("change", () => updateRing({ motif: motifSelect.value as MotifName }));
 countInput.addEventListener("input", () => updateRing({ count: Number(countInput.value) }));
 tipSelect.addEventListener("change", () => updateRing({ petalTip: tipSelect.value as PetalTip }));
-innerOutlineBox.input.addEventListener("change", () => updateRing({ innerOutline: innerOutlineBox.input.checked }));
-dotsBox.input.addEventListener("change", () => updateRing({ dots: dotsBox.input.checked }));
+innerOutlineSlider.input.addEventListener("input", () => updateRing({ innerOutline: innerOutlineSlider.read() }));
+dotsSlider.input.addEventListener("input", () => updateRing({ dots: dotsSlider.read() }));
 waveInput.addEventListener("input", () => updateRing({ waveDepth: Number(waveInput.value) }));
 modeN.input.addEventListener("input", () => updateRing({ cymaticsN: Number(modeN.input.value) }));
 modeM.input.addEventListener("input", () => updateRing({ cymaticsM: Number(modeM.input.value) }));
@@ -190,8 +200,8 @@ function syncRingRows() {
   countInput.value = String(spec.count);
   countValue.textContent = String(spec.count);
   tipSelect.value = spec.petalTip;
-  innerOutlineBox.input.checked = spec.innerOutline;
-  dotsBox.input.checked = spec.dots;
+  innerOutlineSlider.show(spec.innerOutline);
+  dotsSlider.show(spec.dots);
   waveInput.value = String(spec.waveDepth);
   waveValue.textContent = String(spec.waveDepth);
   for (const [mode, value] of [[modeN, spec.cymaticsN], [modeM, spec.cymaticsM]] as const) {
@@ -229,7 +239,7 @@ for (const field of finishFields) {
 
 // Simple numeric and select controls
 
-const ranges = ["rotations", "lineWeight", "lineContrast", "chladniN", "chladniM"] as const;
+const ranges = ["rotations", "lineWeight", "borderThickness", "chladniN", "chladniM"] as const;
 
 function syncControls() {
   for (const field of ranges) {
@@ -323,7 +333,7 @@ const randomSlider = (id: string) => {
 
 function shuffleLines() {
   params.lineWeight = randomSlider("lineWeight");
-  params.lineContrast = randomSlider("lineContrast");
+  params.borderThickness = randomSlider("borderThickness");
 }
 
 function shuffleCenter() {
