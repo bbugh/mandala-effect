@@ -67,6 +67,8 @@ export function autoRings(
   const optionRng = createRng(seed + 0x9e3779b9);
   // A third sequence for the cymatics modes, so the other options for a seed stay the same as before rings had their own modes.
   const modeRng = createRng(seed + 0x7f4a7c15);
+  // A fourth sequence for the inner outline and dot sizes, so the other options for a seed stay the same as when they were on or off.
+  const sizeRng = createRng(seed + 0x5bd1e995);
   const radii = ringRadii(RADIUS, count, spacing);
   const rings: RingSpec[] = [];
   for (let i = 0; i < count; i++) {
@@ -75,8 +77,8 @@ export function autoRings(
       ? {
           petalTip: pick(optionRng, ["pointed", "round"] as const),
           // Each is off half of the time, and otherwise at a random position of its slider.
-          innerOutline: pick(optionRng, [true, false]) ? pick(optionRng, INNER_OUTLINE_STEPS.slice(1)) : 0,
-          dots: pick(optionRng, [true, false]) ? pick(optionRng, DOT_STEPS.slice(1)) : 0,
+          innerOutline: pick(optionRng, [true, false]) ? pick(sizeRng, INNER_OUTLINE_STEPS.slice(1)) : 0,
+          dots: pick(optionRng, [true, false]) ? pick(sizeRng, DOT_STEPS.slice(1)) : 0,
           waveDepth: pick(optionRng, WAVE_DEPTHS),
           cymaticsN: pick(modeRng, CYMATICS_MODES),
           cymaticsM: pick(modeRng, CYMATICS_MODES),
