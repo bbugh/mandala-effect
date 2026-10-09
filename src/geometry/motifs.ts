@@ -19,7 +19,7 @@ export const MOTIF_LABELS: Record<MotifName, string> = {
 export const MOTIF_NAMES = Object.keys(MOTIF_LABELS) as MotifName[];
 
 /**
- * Patterns of the starting design and the personal mandala: petals and teardrops, circles, triangles, and
+ * Patterns of the starting design: petals and teardrops, circles, triangles, and
  * arches, as named in the mandala drawing guides (docs/vendor/stanford-cantor-mandala-art-project.pdf,
  * docs/vendor/staedtler-how-to-draw-a-mandala.html). The Shuffle buttons use every pattern.
  */

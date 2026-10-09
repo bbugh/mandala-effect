@@ -15,9 +15,6 @@ export const CENTER_LABELS: Record<CenterName, string> = {
   cymatics: "Cymatics: rotated",
 };
 
-/** Centers used when a mandala is generated. The others are available in the Design tab only. */
-export const DEFAULT_CENTERS: readonly CenterName[] = ["flowerOfLife", "seedOfLife", "phyllotaxis"];
-
 export interface CenterOptions {
   center: CenterName;
   chladniN: number;
