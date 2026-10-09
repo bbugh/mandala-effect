@@ -319,9 +319,10 @@ function roseBraid({ r1, r2, count, offset, style }: RingContext, out: MotifPens
     curve(out.detail, amplitude * 0.5);
     curve(out.detail, -amplitude * 0.5);
   }
+  // 1 dot in the middle of each opening between the 2 lines, where the lines are farthest apart.
   if (style.dots) {
     for (let i = 0; i < 2 * count; i++) {
-      dot(out, style, polar(mid, (i * Math.PI) / count + shift + Math.PI / (2 * count)), h * 0.05);
+      dot(out, style, polar(mid, (i * Math.PI) / count + shift), h * 0.05);
     }
   }
 }
