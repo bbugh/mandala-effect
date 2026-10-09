@@ -265,7 +265,9 @@ label:has(:disabled) :disabled {
 }
 
 .ring-item[hidden],
-.ring-editor [hidden] {
+.ring-editor [hidden],
+label[hidden],
+.pair[hidden] {
   display: none;
 }
 

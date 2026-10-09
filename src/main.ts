@@ -254,10 +254,10 @@ function syncControls() {
   for (const field of finishFields) $<HTMLInputElement>(field).checked = params[field];
 
   const usesCymatics = params.center === "chladni" || params.center === "cymatics";
-  $<HTMLInputElement>("chladniN").disabled = !usesCymatics;
-  $<HTMLInputElement>("chladniM").disabled = !usesCymatics;
-  $<HTMLInputElement>("bindu").disabled = params.center !== "sriYantra";
-  $<HTMLInputElement>("rotations").disabled = params.center !== "cymatics";
+  // Settings that the selected center does not use are hidden.
+  $<HTMLInputElement>("chladniN").closest(".pair")!.toggleAttribute("hidden", !usesCymatics);
+  $<HTMLInputElement>("bindu").closest("label")!.toggleAttribute("hidden", params.center !== "sriYantra");
+  $<HTMLInputElement>("rotations").closest("label")!.toggleAttribute("hidden", params.center !== "cymatics");
   syncRingRows();
 }
 
