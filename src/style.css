@@ -206,6 +206,16 @@ select:disabled {
   cursor: not-allowed;
 }
 
+/* A disabled control fades its whole label, and the control inside it is not faded a 2nd time. */
+label:has(:disabled) {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+label:has(:disabled) :disabled {
+  opacity: 1;
+}
+
 .pair {
   display: grid;
   grid-template-columns: 1fr 1fr;
