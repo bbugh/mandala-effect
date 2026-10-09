@@ -1,27 +1,32 @@
 import "./style.css";
 import { CENTER_LABELS, type CenterName } from "./geometry/centers";
-import { legibleRepeats, MAX_REPEAT, MOTIF_LABELS, MOTIF_NAMES, type MotifName, type PetalTip } from "./geometry/motifs";
-import { ringRadii } from "./geometry/rings";
-import type { Spacing } from "./geometry/rings";
+import {
+  MAX_COUNT,
+  minCount,
+  MOTIF_LABELS,
+  MOTIF_NAMES,
+  MOTIF_OPTIONS,
+  type MotifName,
+  type PetalTip,
+  type RingOptions,
+} from "./geometry/motifs";
+import { ringRadii, type Spacing } from "./geometry/rings";
 import { downloadPng, downloadSvg } from "./export";
-import { MAX_SEED, settingsFromText, settingsToLink } from "./settings";
-import { autoRings, fitRepeats, type MandalaParams, RADIUS, renderMandala, type RingSpec } from "./render";
+import { Renderer } from "./gl";
+import { MAX_SEED, settingsFromText, settingsToCode, settingsToLink } from "./settings";
+import { autoRings, DRAWING_SIZE, type MandalaParams, mandalaLayers, RADIUS, type RingSpec } from "./render";
 
 const MAX_RINGS = 8;
 
 const params: MandalaParams = {
-  symmetry: 12,
+  rotations: 12,
   spacing: "golden",
   center: "flowerOfLife",
   chladniN: 3,
   chladniM: 5,
   seed: 108,
   lineWeight: 1.5,
-  rings: autoRings(108, 5, 12, "golden"),
-  petalTip: "pointed",
-  innerOutline: true,
-  dots: false,
-  waveDepth: 0.36,
+  rings: autoRings(108, 5, "golden"),
   bindu: true,
   lineContrast: 1,
   borderSpacing: true,
@@ -36,71 +41,184 @@ let stash: RingSpec[] = [];
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 const view = $<HTMLDivElement>("mandala");
+const canvas = document.createElement("canvas");
+view.append(canvas);
+/** Null when the browser has no WebGL 2; the drawing area then shows a message instead. */
+let renderer: Renderer | null = null;
+try {
+  renderer = new Renderer(canvas, false, () => paint());
+} catch {
+  const message = document.createElement("p");
+  message.className = "no-webgl";
+  message.textContent = "This browser cannot draw the mandala.";
+  view.replaceChildren(message);
+}
 const centerSelect = $<HTMLSelectElement>("center");
-const ringRows = $<HTMLTableSectionElement>("ring-rows");
+const ringRows = $<HTMLDivElement>("ring-rows");
 
 for (const [value, label] of Object.entries(CENTER_LABELS)) {
   centerSelect.add(new Option(label, value));
 }
 
-// Ring table: always MAX_RINGS rows; rows beyond the ring count are disabled.
+// Rings: a list with 1 item per ring. The selected ring's item opens in place to show its editor: the ring's
+// pattern, its copies, and only the options that change its pattern. Clicking a ring in the drawing selects it.
 
-interface RingRow {
-  motif: HTMLSelectElement;
-  repeat: HTMLSelectElement;
-}
+/** Index of the ring that the editor changes. */
+let selected = 0;
 
-const rows: RingRow[] = Array.from({ length: MAX_RINGS }, (_, i) => {
-  const tr = document.createElement("tr");
-  const label = document.createElement("th");
-  label.scope = "row";
-  label.textContent = i === 0 ? "1 (inner)" : String(i + 1);
-  const motif = document.createElement("select");
-  motif.setAttribute("aria-label", `Ring ${i + 1} pattern`);
-  for (const name of MOTIF_NAMES) motif.add(new Option(MOTIF_LABELS[name], name));
-  const repeat = document.createElement("select");
-  repeat.setAttribute("aria-label", `Ring ${i + 1} repeats`);
-  for (let k = 1; k <= MAX_REPEAT; k++) repeat.add(new Option("", String(k)));
+const element = <K extends keyof HTMLElementTagNameMap>(tag: K, className = "") => {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  return node;
+};
 
-  const onChange = () => {
-    if (i >= params.rings.length) return;
-    params.rings[i] = { motif: motif.value as MotifName, repeat: Number(repeat.value) };
+const checkbox = (text: string) => {
+  const input = element("input");
+  input.type = "checkbox";
+  const label = element("label", "check");
+  label.append(input, ` ${text}`);
+  return { input, label };
+};
+
+const ringList = element("div", "ring-list");
+const ringItems = Array.from({ length: MAX_RINGS }, (_, i) => {
+  const item = element("div", "ring-item");
+  const node = element("button", "ring-button");
+  node.type = "button";
+  node.addEventListener("click", () => {
+    selected = i;
     draw();
-  };
-  motif.addEventListener("change", onChange);
-  repeat.addEventListener("change", onChange);
-
-  const motifCell = document.createElement("td");
-  motifCell.append(motif);
-  const repeatCell = document.createElement("td");
-  repeatCell.append(repeat);
-  tr.append(label, motifCell, repeatCell);
-  ringRows.append(tr);
-  return { motif, repeat };
+  });
+  item.append(node);
+  ringList.append(item);
+  return { item, button: node };
 });
 
-function syncRingRows() {
-  const preview = autoRings(params.seed, MAX_RINGS, params.symmetry, params.spacing, MOTIF_NAMES);
-  const radii = ringRadii(RADIUS, params.rings.length, params.spacing);
-  rows.forEach((row, i) => {
-    const active = i < params.rings.length;
-    const spec = params.rings[i] ?? stash[i] ?? preview[i];
-    row.motif.value = spec.motif;
-    row.repeat.value = String(spec.repeat);
-    row.motif.disabled = !active;
-    row.repeat.disabled = !active;
-    // Repeat counts at which the motif would not be legible in this ring are disabled.
-    const legible = active ? legibleRepeats(spec.motif, radii[i], radii[i + 1], params.symmetry) : [];
-    Array.from(row.repeat.options).forEach((option, k) => {
-      option.textContent = String(params.symmetry * (k + 1));
-      option.disabled = active && !legible.includes(k + 1);
-    });
-  });
+/** The editor is moved into the selected ring's item. */
+const editor = element("div", "ring-editor");
+
+const motifSelect = element("select");
+motifSelect.setAttribute("aria-label", "Pattern");
+for (const name of MOTIF_NAMES) motifSelect.add(new Option(MOTIF_LABELS[name], name));
+
+const countInput = element("input");
+countInput.type = "range";
+countInput.min = "1";
+countInput.max = String(MAX_COUNT);
+countInput.step = "1";
+const countValue = element("output");
+const copies = element("label", "copies");
+copies.append("Spokes ", countValue, countInput);
+
+const tipSelect = element("select");
+tipSelect.add(new Option("Pointed tips", "pointed"));
+tipSelect.add(new Option("Round tips", "round"));
+tipSelect.setAttribute("aria-label", "Tips");
+const tipLabel = element("label", "tip");
+tipLabel.append(tipSelect);
+const innerOutlineBox = checkbox("Inner outlines");
+const dotsBox = checkbox("Dots");
+const waveInput = element("input");
+waveInput.type = "range";
+waveInput.min = "0.1";
+waveInput.max = "0.5";
+waveInput.step = "0.02";
+const waveValue = element("output");
+const waveLabel = element("label", "wave");
+waveLabel.append("Wave depth ", waveValue, waveInput);
+
+/** A slider for a cymatics ring mode, 1 to 12. */
+function modeSlider(name: string) {
+  const input = element("input");
+  input.type = "range";
+  input.min = "1";
+  input.max = "12";
+  input.step = "1";
+  const value = element("output");
+  const label = element("label", "mode");
+  label.append(`${name} `, value, input);
+  return { input, value, label };
 }
+const modeN = modeSlider("Cymatics n");
+const modeM = modeSlider("Cymatics m");
+/** The label around each option's control, hidden when the option does not change the ring's pattern. */
+const optionLabels: Record<keyof RingOptions, HTMLLabelElement> = {
+  petalTip: tipLabel,
+  innerOutline: innerOutlineBox.label,
+  dots: dotsBox.label,
+  waveDepth: waveLabel,
+  cymaticsN: modeN.label,
+  cymaticsM: modeM.label,
+};
+const options = element("div", "options");
+options.append(tipLabel, innerOutlineBox.label, dotsBox.label, waveLabel, modeN.label, modeM.label);
+
+editor.append(motifSelect, copies, options);
+ringRows.append(ringList);
+
+function updateRing(changes: Partial<RingSpec>) {
+  const spec = { ...params.rings[selected], ...changes };
+  spec.count = Math.min(MAX_COUNT, Math.max(minCount(spec.motif), Math.round(spec.count)));
+  params.rings[selected] = spec;
+  draw();
+}
+
+motifSelect.addEventListener("change", () => updateRing({ motif: motifSelect.value as MotifName }));
+countInput.addEventListener("input", () => updateRing({ count: Number(countInput.value) }));
+tipSelect.addEventListener("change", () => updateRing({ petalTip: tipSelect.value as PetalTip }));
+innerOutlineBox.input.addEventListener("change", () => updateRing({ innerOutline: innerOutlineBox.input.checked }));
+dotsBox.input.addEventListener("change", () => updateRing({ dots: dotsBox.input.checked }));
+waveInput.addEventListener("input", () => updateRing({ waveDepth: Number(waveInput.value) }));
+modeN.input.addEventListener("input", () => updateRing({ cymaticsN: Number(modeN.input.value) }));
+modeM.input.addEventListener("input", () => updateRing({ cymaticsM: Number(modeM.input.value) }));
+
+function syncRingRows() {
+  selected = Math.min(selected, params.rings.length - 1);
+  ringItems.forEach(({ item, button: node }, i) => {
+    const spec = params.rings[i];
+    item.hidden = !spec;
+    if (!spec) return;
+    node.textContent = `${i + 1}  ${MOTIF_LABELS[spec.motif]} × ${spec.count}`;
+    node.setAttribute("aria-expanded", String(i === selected));
+    item.classList.toggle("selected", i === selected);
+  });
+  // Moving the editor ends a slider drag on iPhone Safari, so it moves only when the selected ring changes.
+  if (editor.parentElement !== ringItems[selected].item) ringItems[selected].item.append(editor);
+  const spec = params.rings[selected];
+  motifSelect.value = spec.motif;
+  countInput.min = String(minCount(spec.motif));
+  countInput.value = String(spec.count);
+  countValue.textContent = String(spec.count);
+  tipSelect.value = spec.petalTip;
+  innerOutlineBox.input.checked = spec.innerOutline;
+  dotsBox.input.checked = spec.dots;
+  waveInput.value = String(spec.waveDepth);
+  waveValue.textContent = String(spec.waveDepth);
+  for (const [mode, value] of [[modeN, spec.cymaticsN], [modeM, spec.cymaticsM]] as const) {
+    mode.input.value = String(value);
+    mode.value.textContent = String(value);
+  }
+  const shown = MOTIF_OPTIONS[spec.motif];
+  for (const [name, label] of Object.entries(optionLabels)) label.hidden = !shown.includes(name as keyof RingOptions);
+  options.hidden = shown.length === 0;
+}
+
+// Clicking a ring in the drawing selects it in the ring editor.
+canvas.addEventListener("click", (event) => {
+  const box = canvas.getBoundingClientRect();
+  const x = ((event.clientX - box.left) / box.width - 0.5) * DRAWING_SIZE;
+  const y = ((event.clientY - box.top) / box.height - 0.5) * DRAWING_SIZE;
+  const distance = Math.hypot(x, y);
+  const radii = ringRadii(RADIUS, params.rings.length, params.spacing);
+  const ring = radii.findIndex((r, i) => i < params.rings.length && distance >= r && distance < radii[i + 1]);
+  if (ring < 0) return;
+  selected = ring;
+  draw();
+});
 
 // Line finish checkboxes
 
-const finishFields = ["innerOutline", "dots", "borderSpacing", "minDetail", "bindu"] as const;
+const finishFields = ["borderSpacing", "minDetail", "bindu"] as const;
 
 for (const field of finishFields) {
   $<HTMLInputElement>(field).addEventListener("change", (event) => {
@@ -111,7 +229,7 @@ for (const field of finishFields) {
 
 // Simple numeric and select controls
 
-const ranges = ["symmetry", "lineWeight", "lineContrast", "chladniN", "chladniM", "waveDepth", "seed"] as const;
+const ranges = ["rotations", "lineWeight", "lineContrast", "chladniN", "chladniM"] as const;
 
 function syncControls() {
   for (const field of ranges) {
@@ -122,40 +240,50 @@ function syncControls() {
   $<HTMLInputElement>("ringCount").value = String(params.rings.length);
   $<HTMLOutputElement>("ringCount-value").textContent = String(params.rings.length);
   for (const radio of spacingRadios) radio.checked = radio.value === params.spacing;
-  $<HTMLSelectElement>("petalTip").value = params.petalTip;
   centerSelect.value = params.center;
   for (const field of finishFields) $<HTMLInputElement>(field).checked = params[field];
 
-  const usesCymatics =
-    params.center === "chladni" || params.center === "cymatics" || params.rings.some((r) => r.motif === "cymatics");
+  const usesCymatics = params.center === "chladni" || params.center === "cymatics";
   $<HTMLInputElement>("chladniN").disabled = !usesCymatics;
   $<HTMLInputElement>("chladniM").disabled = !usesCymatics;
   $<HTMLInputElement>("bindu").disabled = params.center !== "sriYantra";
-  $<HTMLInputElement>("waveDepth").disabled = !params.rings.some((r) => r.motif === "roseBraid");
+  $<HTMLInputElement>("rotations").disabled = params.center !== "cymatics";
   syncRingRows();
 }
 
-let currentSvg = "";
+
+// The address bar always shows the link to the current design. The first redraw of a change adds a
+// browser history entry, and later redraws until the change finishes (a slider is released, a menu
+// choice or checkbox change is made, or a button is clicked) replace that entry. Back then returns
+// to the design before each finished change.
+let changing = false;
+for (const type of ["change", "click"]) document.addEventListener(type, () => (changing = false));
+
+/** Draws the mandala at the canvas's displayed size and the screen's pixel density. */
+function paint() {
+  const pixels = Math.round(canvas.clientWidth * window.devicePixelRatio);
+  if (canvas.width !== pixels) {
+    canvas.width = pixels;
+    canvas.height = pixels;
+  }
+  renderer?.draw(mandalaLayers(params), DRAWING_SIZE, pixels);
+}
+new ResizeObserver(paint).observe(canvas);
 
 function draw() {
-  params.rings = fitRepeats(params.rings, params.symmetry, params.spacing);
   syncControls();
-  currentSvg = renderMandala(params);
-  view.innerHTML = currentSvg;
-}
-
-function reseed(seed: number) {
-  params.seed = seed;
-  params.rings = autoRings(seed, params.rings.length, params.symmetry, params.spacing, MOTIF_NAMES);
-  stash = [];
-  draw();
+  paint();
+  const link = settingsToLink(params, location.href);
+  if (link === location.href) return;
+  if (changing) history.replaceState(null, "", link);
+  else history.pushState(null, "", link);
+  changing = true;
 }
 
 for (const field of ranges) {
   $<HTMLInputElement>(field).addEventListener("input", (event) => {
     const value = Number((event.target as HTMLInputElement).value);
     if (!Number.isFinite(value)) return;
-    if (field === "seed") return reseed(Math.min(MAX_SEED, Math.max(0, Math.floor(value))));
     params[field] = value;
     draw();
   });
@@ -164,7 +292,7 @@ for (const field of ranges) {
 $<HTMLInputElement>("ringCount").addEventListener("input", (event) => {
   const count = Number((event.target as HTMLInputElement).value);
   params.rings.forEach((spec, i) => (stash[i] = spec));
-  const filled = autoRings(params.seed, count, params.symmetry, params.spacing, MOTIF_NAMES);
+  const filled = autoRings(params.seed, count, params.spacing, MOTIF_NAMES, true);
   params.rings = filled.map((spec, i) => params.rings[i] ?? stash[i] ?? spec);
   draw();
 });
@@ -177,17 +305,10 @@ for (const radio of spacingRadios) {
   });
 }
 
-$<HTMLSelectElement>("petalTip").addEventListener("change", (event) => {
-  params.petalTip = (event.target as HTMLSelectElement).value as PetalTip;
-  draw();
-});
-
 centerSelect.addEventListener("change", () => {
   params.center = centerSelect.value as CenterName;
   draw();
 });
-
-$<HTMLButtonElement>("shuffle").addEventListener("click", () => reseed(Math.floor(Math.random() * 100000)));
 
 /** Random whole number from min to max, inclusive. */
 const randomInt = (min: number, max: number) => min + Math.floor(Math.random() * (max - min + 1));
@@ -200,83 +321,90 @@ const randomSlider = (id: string) => {
   return Number((min + randomInt(0, Math.round((max - min) / step)) * step).toFixed(2));
 };
 
-// Picks every setting at random: every center, every ring pattern, every slider, and every checkbox.
-$<HTMLButtonElement>("shuffle-all").addEventListener("click", () => {
-  params.symmetry = randomSlider("symmetry");
-  params.spacing = randomItem(["golden", "even"] as const);
+function shuffleLines() {
   params.lineWeight = randomSlider("lineWeight");
   params.lineContrast = randomSlider("lineContrast");
-  params.minDetail = randomItem([true, false]);
+}
+
+function shuffleCenter() {
   params.center = randomItem(Object.keys(CENTER_LABELS) as CenterName[]);
   params.bindu = randomItem([true, false]);
+  params.rotations = randomSlider("rotations");
   params.chladniN = randomSlider("chladniN");
-  // Equal modes produce a blank Chladni plate.
+  // n = m = 1 is the only pair with no lines on the Chladni plate center.
   do params.chladniM = randomSlider("chladniM");
-  while (params.chladniM === params.chladniN);
-  params.petalTip = randomItem(["pointed", "round"] as const);
-  params.innerOutline = randomItem([true, false]);
-  params.dots = randomItem([true, false]);
-  params.waveDepth = randomSlider("waveDepth");
+  while (params.center === "chladni" && params.chladniN === 1 && params.chladniM === 1);
+}
+
+/**
+ * Picks the ring spacing, the double borders, the number of rings, and every ring's settings. The seed
+ * also chooses the settings of rings added later with the Number of rings slider.
+ */
+function shuffleRings() {
+  params.spacing = randomItem(["golden", "even"] as const);
   params.borderSpacing = randomItem([true, false]);
-  params.seed = randomInt(0, 99999);
-  params.rings = autoRings(params.seed, randomSlider("ringCount"), params.symmetry, params.spacing, MOTIF_NAMES);
+  params.seed = randomInt(0, MAX_SEED);
+  params.rings = autoRings(params.seed, randomSlider("ringCount"), params.spacing, MOTIF_NAMES, true);
   stash = [];
+}
+
+const shuffles = { lines: shuffleLines, center: shuffleCenter, rings: shuffleRings };
+for (const [section, shuffle] of Object.entries(shuffles)) {
+  $<HTMLButtonElement>(`shuffle-${section}`).addEventListener("click", () => {
+    shuffle();
+    draw();
+  });
+}
+
+// Picks every setting at random, including the "Hide difficult to print details" checkbox.
+$<HTMLButtonElement>("shuffle-all").addEventListener("click", () => {
+  shuffleLines();
+  shuffleCenter();
+  shuffleRings();
+  params.minDetail = randomItem([true, false]);
   draw();
 });
 
-// Settings copy and paste
+// Share puts the link to the current design on the clipboard and shows a checkmark for a moment.
 
-const settingsStatus = $<HTMLParagraphElement>("settings-status");
+const shareButton = $<HTMLButtonElement>("share");
+const [shareIcon, copiedIcon] = shareButton.querySelectorAll("svg");
+let shareTimer = 0;
 
-const copyButton = $<HTMLButtonElement>("copy-settings");
-let copyTimer = 0;
+function showCopied(copied: boolean) {
+  shareIcon.toggleAttribute("hidden", copied);
+  copiedIcon.toggleAttribute("hidden", !copied);
+  shareButton.setAttribute("aria-label", copied ? "Link copied" : "Share");
+}
 
-copyButton.addEventListener("click", () => {
-  settingsStatus.textContent = "";
+shareButton.addEventListener("click", () => {
   navigator.clipboard.writeText(settingsToLink(params, location.href));
-  copyButton.textContent = "Copied";
-  clearTimeout(copyTimer);
-  copyTimer = window.setTimeout(() => (copyButton.textContent = "Copy"), 1200);
-});
-
-$<HTMLButtonElement>("paste-settings").addEventListener("click", async () => {
-  let text: string | null;
-  try {
-    text = await navigator.clipboard.readText();
-  } catch {
-    text = prompt("Paste the mandala link:");
-  }
-  settingsStatus.textContent = "";
-  if (text === null) return;
-  const pasted = settingsFromText(text, params);
-  if (!pasted) {
-    settingsStatus.textContent = "The clipboard does not contain mandala settings.";
-    return;
-  }
-  Object.assign(params, pasted);
-  stash = [];
-  draw();
+  showCopied(true);
+  clearTimeout(shareTimer);
+  shareTimer = window.setTimeout(() => showCopied(false), 1200);
 });
 
 // Export
 
-const filename = (extension: string) => `mandala-${params.symmetry}-${params.seed}.${extension}`;
+const filename = (extension: string) => `mandala-${settingsToCode(params)}.${extension}`;
 
-$<HTMLButtonElement>("export-svg").addEventListener("click", () => downloadSvg(currentSvg, filename("svg")));
+$<HTMLButtonElement>("export-svg").addEventListener("click", () => downloadSvg(mandalaLayers(params), filename("svg")));
 $<HTMLButtonElement>("export-png").addEventListener("click", () => {
-  downloadPng(currentSvg, filename("png")).catch((error) => alert(`PNG export failed: ${error.message}`));
+  downloadPng(mandalaLayers(params), filename("png")).catch((error) => alert(`PNG export failed: ${error.message}`));
 });
 
-// A link made by Copy opens the page with its settings. A link pasted into the address bar while the
-// page is open changes only the part after "#", so the page also listens for that change.
+// A link opens the page with its settings. Back, Forward, and a link pasted into the address bar while
+// the page is open change only the part after "#", so the page also listens for that change. Drawing a
+// design from the address bar replaces the current entry and adds none.
 function applyLink() {
   const linked = location.hash ? settingsFromText(location.href, params) : null;
-  if (!linked) return false;
-  Object.assign(params, linked);
-  stash = [];
-  return true;
+  if (linked) {
+    Object.assign(params, linked);
+    stash = [];
+  }
+  changing = true;
+  draw();
+  changing = false;
 }
-window.addEventListener("hashchange", () => applyLink() && draw());
+window.addEventListener("popstate", applyLink);
 applyLink();
-
-draw();

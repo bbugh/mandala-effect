@@ -1,18 +1,14 @@
-// Settings as text, so a mandala can be copied to the clipboard and pasted back later.
+// Settings as a short code in the page link, so a link opens the same mandala.
 
 import { CENTER_LABELS, type CenterName } from "./geometry/centers";
-import { MAX_REPEAT, MOTIF_NAMES, type MotifName } from "./geometry/motifs";
+import { DEFAULT_RING_OPTIONS, MAX_COUNT, MOTIF_NAMES, type MotifName, type RingOptions } from "./geometry/motifs";
 import type { MandalaParams, RingSpec } from "./render";
 
-export function settingsToText(params: MandalaParams): string {
-  return JSON.stringify(params);
-}
-
 // Short link code: a version character followed by the settings packed into bits and written in
-// URL-safe base64, for example "1hW3Uq0d7xQ5n2aLhA". A new layout gets a new version character,
+// URL-safe base64, for example "4hW3Uq0d7xQ5n2aLhA". A new layout gets a new version character,
 // and codeToData keeps reading every earlier version.
 
-const CODE_VERSION = "2";
+const CODE_VERSION = "5";
 const BASE64URL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
 /** Highest variation number a link can store. */
@@ -36,15 +32,30 @@ const weightSteps = steps(0.5, 0.25);
 const contrastSteps = steps(0, 0.1);
 const waveSteps = steps(0.1, 0.02);
 
-const flag = (name: "bindu" | "borderSpacing" | "minDetail" | "innerOutline" | "dots"): Field => ({
+const flag = (name: "bindu" | "borderSpacing" | "minDetail"): Field => ({
   bits: 1,
   get: (p) => (p[name] ? 1 : 0),
   set: (d, v) => (d[name] = v === 1),
 });
 
-/** Fields shared by every version, before the inner outline and dots settings. */
-const LEADING_FIELDS: Field[] = [
-  { bits: 5, get: (p) => p.symmetry, set: (d, v) => (d.symmetry = v) },
+/** A field that only earlier versions have: it is read, never written. */
+const legacy = (bits: number, set: Field["set"]): Field => ({ bits, get: () => 0, set });
+const legacyFlag = (name: "innerOutline" | "dots") => legacy(1, (d, v) => (d[name] = v === 1));
+
+/**
+ * Versions 1 and 2 start with the symmetry setting. It set the rotated cymatics center's rotations, and
+ * each ring stored a multiplier: the ring had symmetry × multiplier copies.
+ */
+const SYMMETRY_FIELD = legacy(5, (d, v) => {
+  d.symmetry = v;
+  d.rotations = v;
+});
+
+/** Versions 3 and later start with the rotated cymatics center's rotations. */
+const ROTATIONS_FIELD: Field = { bits: 5, get: (p) => p.rotations, set: (d, v) => (d.rotations = v) };
+
+/** Fields shared by every version, after the first field. */
+const SHARED_FIELDS: Field[] = [
   { bits: 1, get: (p) => (p.spacing === "even" ? 1 : 0), set: (d, v) => (d.spacing = v ? "even" : "golden") },
   { bits: 3, get: (p) => CENTERS.indexOf(p.center), set: (d, v) => (d.center = CENTERS[v]) },
   { bits: 4, get: (p) => p.chladniN, set: (d, v) => (d.chladniN = v) },
@@ -52,35 +63,93 @@ const LEADING_FIELDS: Field[] = [
   { bits: 17, get: (p) => Math.min(p.seed, MAX_SEED), set: (d, v) => (d.seed = v) },
   { bits: 4, get: (p) => weightSteps.toInt(p.lineWeight), set: (d, v) => (d.lineWeight = weightSteps.fromInt(v)) },
   { bits: 5, get: (p) => contrastSteps.toInt(p.lineContrast), set: (d, v) => (d.lineContrast = contrastSteps.fromInt(v)) },
-  { bits: 1, get: (p) => (p.petalTip === "round" ? 1 : 0), set: (d, v) => (d.petalTip = v ? "round" : "pointed") },
 ];
 
-/** Fields shared by every version, after the inner outline and dots settings. */
-const TRAILING_FIELDS: Field[] = [
-  { bits: 5, get: (p) => waveSteps.toInt(p.waveDepth), set: (d, v) => (d.waveDepth = waveSteps.fromInt(v)) },
-  flag("bindu"),
-  flag("borderSpacing"),
-  flag("minDetail"),
-];
+const FINAL_FIELDS: Field[] = [flag("bindu"), flag("borderSpacing"), flag("minDetail")];
+
+/** Versions 1 to 3 stored the tips, inner outline, dots, and wave depth once for every ring. */
+const LEGACY_TIP = legacy(1, (d, v) => (d.petalTip = v ? "round" : "pointed"));
+const LEGACY_WAVE = legacy(5, (d, v) => (d.waveDepth = waveSteps.fromInt(v)));
 
 /** Version 1 stored 1 detail setting: 0 outline only, 1 inner outline, 2 inner outline and dots. */
-const V1_FIELDS: Field[] = [
-  ...LEADING_FIELDS,
-  {
-    bits: 2,
-    get: () => 0,
-    set: (d, v) => {
-      d.innerOutline = v >= 1;
-      d.dots = v === 2;
-    },
-  },
-  ...TRAILING_FIELDS,
+const LEGACY_DETAIL = legacy(2, (d, v) => {
+  d.innerOutline = v >= 1;
+  d.dots = v === 2;
+});
+
+const FIELDS: Record<string, Field[]> = {
+  "1": [SYMMETRY_FIELD, ...SHARED_FIELDS, LEGACY_TIP, LEGACY_DETAIL, LEGACY_WAVE, ...FINAL_FIELDS],
+  // Version 2 stores inner outline and dots as separate settings.
+  "2": [SYMMETRY_FIELD, ...SHARED_FIELDS, LEGACY_TIP, legacyFlag("innerOutline"), legacyFlag("dots"), LEGACY_WAVE, ...FINAL_FIELDS],
+  // Version 3 stores the rotations instead of the symmetry, and each ring's copy count directly.
+  "3": [ROTATIONS_FIELD, ...SHARED_FIELDS, LEGACY_TIP, legacyFlag("innerOutline"), legacyFlag("dots"), LEGACY_WAVE, ...FINAL_FIELDS],
+  // Version 4 stores the tips, inner outline, dots, and wave depth for each ring.
+  "4": [ROTATIONS_FIELD, ...SHARED_FIELDS, ...FINAL_FIELDS],
+  // Version 5 also stores the cymatics modes for each ring.
+  "5": [ROTATIONS_FIELD, ...SHARED_FIELDS, ...FINAL_FIELDS],
+};
+
+/** Each ring field of a code version, after the ring's pattern. */
+interface RingField {
+  bits: number;
+  get: (ring: RingSpec) => number;
+  set: (ring: Record<string, unknown>, value: number) => void;
+}
+
+/** Versions 1 and 2 stored a multiplier for each ring; ringsFromMultipliers turns it into a copy count. */
+const MULTIPLIER: RingField = { bits: 4, get: () => 0, set: (r, v) => (r.repeat = v + 1) };
+const COUNT: RingField = { bits: 8, get: (r) => r.count - 1, set: (r, v) => (r.count = v + 1) };
+
+const RING_OPTION_FIELDS: RingField[] = [
+  COUNT,
+  { bits: 1, get: (r) => (r.petalTip === "round" ? 1 : 0), set: (r, v) => (r.petalTip = v ? "round" : "pointed") },
+  { bits: 1, get: (r) => (r.innerOutline ? 1 : 0), set: (r, v) => (r.innerOutline = v === 1) },
+  { bits: 1, get: (r) => (r.dots ? 1 : 0), set: (r, v) => (r.dots = v === 1) },
+  { bits: 5, get: (r) => waveSteps.toInt(r.waveDepth), set: (r, v) => (r.waveDepth = waveSteps.fromInt(v)) },
 ];
 
-/** Version 2 stores inner outline and dots as separate settings. */
-const V2_FIELDS: Field[] = [...LEADING_FIELDS, flag("innerOutline"), flag("dots"), ...TRAILING_FIELDS];
+const RING_FIELDS: Record<string, RingField[]> = {
+  "1": [MULTIPLIER],
+  "2": [MULTIPLIER],
+  "3": [COUNT],
+  "4": RING_OPTION_FIELDS,
+  "5": [
+    ...RING_OPTION_FIELDS,
+    { bits: 4, get: (r) => r.cymaticsN, set: (r, v) => (r.cymaticsN = v) },
+    { bits: 4, get: (r) => r.cymaticsM, set: (r, v) => (r.cymaticsM = v) },
+  ],
+};
 
-const FIELDS: Record<string, Field[]> = { "1": V1_FIELDS, "2": V2_FIELDS };
+/** Converts rings stored with a multiplier (versions 1 and 2, and older settings text) into copy counts. */
+function ringsFromMultipliers(rings: Record<string, unknown>[], symmetry: number): Record<string, unknown>[] {
+  return rings.map(({ repeat, ...ring }) => ({
+    ...ring,
+    count: typeof repeat === "number" ? Math.min(MAX_COUNT, symmetry * repeat) : repeat,
+  }));
+}
+
+const RING_OPTION_NAMES = Object.keys(DEFAULT_RING_OPTIONS) as (keyof RingOptions)[];
+
+/** Ring options whose value in earlier settings has a different name. */
+const EARLIER_NAMES: Partial<Record<keyof RingOptions, string>> = { cymaticsN: "chladniN", cymaticsM: "chladniM" };
+
+/**
+ * Settings from before version 4 have 1 value each for tips, inner outline, dots, and wave depth, and
+ * settings from before version 5 have the center's cymatics modes, which cymatics rings also used.
+ * Each ring that has no value of its own gets that value, or the default.
+ */
+function fillRingOptions(input: Record<string, unknown>) {
+  if (!Array.isArray(input.rings)) return;
+  input.rings = input.rings.map((ring) => {
+    if (typeof ring !== "object" || ring === null) return ring;
+    const filled: Record<string, unknown> = { ...ring };
+    for (const name of RING_OPTION_NAMES) {
+      const shared = input[EARLIER_NAMES[name] ?? name];
+      if (!(name in filled)) filled[name] = OPTION_CHECKS[name](shared) ? shared : DEFAULT_RING_OPTIONS[name];
+    }
+    return filled;
+  });
+}
 
 export function settingsToCode(params: MandalaParams): string {
   const bits: number[] = [];
@@ -88,11 +157,11 @@ export function settingsToCode(params: MandalaParams): string {
     for (let i = count - 1; i >= 0; i--) bits.push((value >> i) & 1);
   };
   for (const field of FIELDS[CODE_VERSION]) write(field.get(params), field.bits);
-  // Rings: the count minus 1, then each ring's pattern and repeat minus 1.
+  // Rings: the number of rings minus 1, then each ring's pattern and ring fields.
   write(params.rings.length - 1, 3);
   for (const ring of params.rings) {
     write(MOTIFS.indexOf(ring.motif), 3);
-    write(ring.repeat - 1, 4);
+    for (const field of RING_FIELDS[CODE_VERSION]) write(field.get(ring), field.bits);
   }
   while (bits.length % 6 !== 0) bits.push(0);
   let code = CODE_VERSION;
@@ -111,6 +180,7 @@ export function settingsToLink(params: MandalaParams, pageUrl: string): string {
 function codeToData(text: string): Record<string, unknown> | null {
   const code = (text.includes("#") ? text.slice(text.lastIndexOf("#") + 1) : text).trim();
   const fields = FIELDS[code[0]];
+  const ringFields = RING_FIELDS[code[0]];
   if (!fields || code.length < 2) return null;
   const bits: number[] = [];
   for (const char of code.slice(1)) {
@@ -127,8 +197,13 @@ function codeToData(text: string): Record<string, unknown> | null {
   const data: Record<string, unknown> = {};
   for (const field of fields) field.set(data, read(field.bits));
   const ringCount = read(3) + 1;
-  if (position + ringCount * 7 > bits.length) return null;
-  data.rings = Array.from({ length: ringCount }, () => ({ motif: MOTIFS[read(3)], repeat: read(4) + 1 }));
+  const ringBits = 3 + ringFields.reduce((sum, field) => sum + field.bits, 0);
+  if (position + ringCount * ringBits > bits.length) return null;
+  data.rings = Array.from({ length: ringCount }, () => {
+    const ring: Record<string, unknown> = { motif: MOTIFS[read(3)] };
+    for (const field of ringFields) field.set(ring, read(field.bits));
+    return ring;
+  });
   return data;
 }
 
@@ -136,8 +211,17 @@ const oneOf = (values: readonly unknown[]) => (value: unknown) => values.include
 const number = (value: unknown) => typeof value === "number" && Number.isFinite(value);
 const boolean = (value: unknown) => typeof value === "boolean";
 
+const OPTION_CHECKS: { [K in keyof RingOptions]: (value: unknown) => boolean } = {
+  petalTip: oneOf(["pointed", "round"]),
+  innerOutline: boolean,
+  dots: boolean,
+  waveDepth: number,
+  cymaticsN: (value) => Number.isInteger(value) && (value as number) >= 1 && (value as number) <= 12,
+  cymaticsM: (value) => Number.isInteger(value) && (value as number) >= 1 && (value as number) <= 12,
+};
+
 const CHECKS: { [K in keyof MandalaParams]: (value: unknown) => boolean } = {
-  symmetry: number,
+  rotations: number,
   spacing: oneOf(["golden", "even"]),
   center: oneOf(Object.keys(CENTER_LABELS)),
   chladniN: number,
@@ -150,12 +234,12 @@ const CHECKS: { [K in keyof MandalaParams]: (value: unknown) => boolean } = {
     value.length > 0 &&
     value.every(
       (ring: RingSpec) =>
-        MOTIF_NAMES.includes(ring?.motif) && Number.isInteger(ring?.repeat) && ring.repeat >= 1 && ring.repeat <= MAX_REPEAT,
+        MOTIF_NAMES.includes(ring?.motif) &&
+        Number.isInteger(ring?.count) &&
+        ring.count >= 1 &&
+        ring.count <= MAX_COUNT &&
+        RING_OPTION_NAMES.every((name) => OPTION_CHECKS[name](ring[name])),
     ),
-  petalTip: oneOf(["pointed", "round"]),
-  innerOutline: boolean,
-  dots: boolean,
-  waveDepth: number,
   bindu: boolean,
   borderSpacing: boolean,
   smooth: boolean,
@@ -163,25 +247,23 @@ const CHECKS: { [K in keyof MandalaParams]: (value: unknown) => boolean } = {
 };
 
 /**
- * Reads a link or short code made by settingsToLink, or settings text from earlier copies. Fields that are missing or invalid keep their current values.
+ * Reads a link or short code made by settingsToLink. Fields that are missing or invalid keep their current values.
  * Returns null when the text is not settings at all.
  */
 export function settingsFromText(text: string, current: MandalaParams): MandalaParams | null {
-  let data: unknown = codeToData(text);
-  if (!data) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      return null;
-    }
-  }
-  if (typeof data !== "object" || data === null || Array.isArray(data)) return null;
-  const input = data as Record<string, unknown>;
-  // Settings text from before version 2 has 1 detail setting: 0 outline only, 1 inner outline, 2 inner outline and dots.
+  const input = codeToData(text);
+  if (!input) return null;
+  // Links from before version 2 have 1 detail setting: 0 outline only, 1 inner outline, 2 inner outline and dots.
   if ([0, 1, 2].includes(input.detail as number) && !("innerOutline" in input) && !("dots" in input)) {
     input.innerOutline = (input.detail as number) >= 1;
     input.dots = input.detail === 2;
   }
+  // Links from before version 3 have a symmetry setting and a multiplier for each ring.
+  if (typeof input.symmetry === "number" && Array.isArray(input.rings) && input.rings.every((ring) => ring && "repeat" in ring)) {
+    if (!("rotations" in input)) input.rotations = input.symmetry;
+    input.rings = ringsFromMultipliers(input.rings, input.symmetry);
+  }
+  fillRingOptions(input);
   const result = { ...current, rings: current.rings.map((ring) => ({ ...ring })) };
   let found = 0;
   for (const key of Object.keys(CHECKS) as (keyof MandalaParams)[]) {

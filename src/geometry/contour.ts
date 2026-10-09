@@ -1,6 +1,8 @@
 // Marching squares: traces the zero lines of a function over a rectangle.
 
-export type Point = [number, number];
+import type { Pen, Point } from "./pen";
+
+export type { Point };
 
 export interface Domain {
   x0: number;
@@ -66,7 +68,7 @@ export function zeroContour(f: (x: number, y: number) => number, domain: Domain)
   return joinSegments(segments);
 }
 
-/** Connects segments that share endpoints into longer polylines, which makes the SVG much smaller. */
+/** Connects segments that share endpoints into longer polylines, so smoothing can run along each whole line. */
 function joinSegments(segments: [Point, Point][]): Point[][] {
   const key = ([x, y]: Point) => `${Math.round(x * 1e6)},${Math.round(y * 1e6)}`;
   const byEnd = new Map<string, number[]>();
@@ -101,9 +103,6 @@ function joinSegments(segments: [Point, Point][]): Point[][] {
   return lines;
 }
 
-// 1 decimal place is 0.02 mm when the mandala is printed 8 inches wide.
-const fmt = (n: number) => Number(n.toFixed(1)).toString();
-
 /** Distance, in drawing units, between the points kept on each traced line before smoothing. */
 const POINT_SPACING = 1.5;
 
@@ -124,35 +123,34 @@ function resample(line: Point[]): Point[] {
 }
 
 /**
- * Converts polylines into SVG path data. With smooth set, each polyline becomes a
- * Catmull-Rom spline (drawn as cubic Bézier curves), which removes the small
- * corners that marching squares leaves at grid cell edges.
+ * Draws polylines. With smooth set, each polyline becomes a Catmull-Rom spline (drawn as cubic
+ * Bézier curves), which removes the small corners that marching squares leaves at grid cell edges.
  */
-export function linesToPath(lines: Point[][], smooth: boolean): string {
-  return lines
-    .map((traced) => {
-      const line = resample(traced);
-      const start = `M${fmt(line[0][0])} ${fmt(line[0][1])}`;
-      if (!smooth || line.length < 3) {
-        return start + line.slice(1).map(([x, y]) => `L${fmt(x)} ${fmt(y)}`).join("");
-      }
-      const first = line[0];
-      const last = line[line.length - 1];
-      const closed = Math.hypot(first[0] - last[0], first[1] - last[1]) < 1e-6;
-      const at = (i: number): Point => {
-        if (closed) return line[(i + line.length - 1) % (line.length - 1)];
-        return line[Math.max(0, Math.min(line.length - 1, i))];
-      };
-      let d = start;
-      for (let i = 0; i < line.length - 1; i++) {
-        const [p0, p1, p2, p3] = [at(i - 1), line[i], line[i + 1], at(i + 2)];
-        const c1x = p1[0] + (p2[0] - p0[0]) / 6;
-        const c1y = p1[1] + (p2[1] - p0[1]) / 6;
-        const c2x = p2[0] - (p3[0] - p1[0]) / 6;
-        const c2y = p2[1] - (p3[1] - p1[1]) / 6;
-        d += `C${fmt(c1x)} ${fmt(c1y)} ${fmt(c2x)} ${fmt(c2y)} ${fmt(p2[0])} ${fmt(p2[1])}`;
-      }
-      return d;
-    })
-    .join("");
+export function drawLines(pen: Pen, lines: Point[][], smooth: boolean) {
+  for (const traced of lines) {
+    const line = resample(traced);
+    pen.moveTo(...line[0]);
+    if (!smooth || line.length < 3) {
+      for (let i = 1; i < line.length; i++) pen.lineTo(...line[i]);
+      continue;
+    }
+    const first = line[0];
+    const last = line[line.length - 1];
+    const closed = Math.hypot(first[0] - last[0], first[1] - last[1]) < 1e-6;
+    const at = (i: number): Point => {
+      if (closed) return line[(i + line.length - 1) % (line.length - 1)];
+      return line[Math.max(0, Math.min(line.length - 1, i))];
+    };
+    for (let i = 0; i < line.length - 1; i++) {
+      const [p0, p1, p2, p3] = [at(i - 1), line[i], line[i + 1], at(i + 2)];
+      pen.bezierCurveTo(
+        p1[0] + (p2[0] - p0[0]) / 6,
+        p1[1] + (p2[1] - p0[1]) / 6,
+        p2[0] - (p3[0] - p1[0]) / 6,
+        p2[1] - (p3[1] - p1[1]) / 6,
+        p2[0],
+        p2[1],
+      );
+    }
+  }
 }

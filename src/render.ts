@@ -1,17 +1,18 @@
-import { type CenterName, drawCenter } from "./geometry/centers";
-import { DEFAULT_MOTIFS, legibleRepeats, MOTIFS, type MotifName, type PetalTip } from "./geometry/motifs";
+import { type CenterName, type CenterOptions, drawCenter } from "./geometry/centers";
+import { DEFAULT_MOTIFS, DEFAULT_RING_OPTIONS, legibleCounts, minCount, MOTIFS, type MotifName, type RingContext, type RingOptions } from "./geometry/motifs";
+import { type Disk, Path } from "./geometry/pen";
 import { ringRadii, type Spacing } from "./geometry/rings";
-import { circle } from "./geometry/svg";
 import { createRng, pick } from "./rng";
 
-export interface RingSpec {
+export interface RingSpec extends RingOptions {
   motif: MotifName;
-  /** The motif repeats symmetry × repeat times around the ring. */
-  repeat: number;
+  /** Number of copies of the motif around the ring. */
+  count: number;
 }
 
 export interface MandalaParams {
-  symmetry: number;
+  /** Number of rotated copies in the rotated cymatics center. */
+  rotations: number;
   spacing: Spacing;
   center: CenterName;
   chladniN: number;
@@ -19,10 +20,6 @@ export interface MandalaParams {
   seed: number;
   lineWeight: number;
   rings: RingSpec[];
-  petalTip: PetalTip;
-  innerOutline: boolean;
-  dots: boolean;
-  waveDepth: number;
   /** Sri Yantra center point. */
   bindu: boolean;
   /** 0: every line uses lineWeight. Higher values make borders thicker and details thinner. */
@@ -37,92 +34,173 @@ export interface MandalaParams {
 
 export const RADIUS = 500;
 const MARGIN = 24;
+/** Width and height of the drawing in drawing units. */
+export const DRAWING_SIZE = 2 * (RADIUS + MARGIN);
+
+/** Rose braid wave depths that the page's slider offers: 0.1 to 0.5 in steps of 0.02. */
+const WAVE_DEPTHS = Array.from({ length: 21 }, (_, k) => Number((0.1 + k * 0.02).toFixed(2)));
+
+/** Cymatics ring modes that the page's sliders offer: 1 to 12. */
+const CYMATICS_MODES = Array.from({ length: 12 }, (_, k) => k + 1);
 
 /**
- * Chooses a motif and a legible repeat count for each ring from the variation seed.
- * A ring never repeats the motif of the ring directly inside it.
+ * Chooses a motif and a legible copy count for each ring from the variation seed.
+ * A ring never repeats the motif of the ring directly inside it. With randomOptions, each ring's
+ * tips, inner outlines, dots, wave depth, and cymatics modes are also chosen from the seed; otherwise every ring
+ * uses DEFAULT_RING_OPTIONS.
  */
 export function autoRings(
   seed: number,
   count: number,
-  symmetry: number,
   spacing: Spacing,
   motifs: readonly MotifName[] = DEFAULT_MOTIFS,
+  randomOptions = false,
 ): RingSpec[] {
   const rng = createRng(seed);
+  // A separate sequence for the options, so the motifs and counts for a seed do not depend on randomOptions.
+  const optionRng = createRng(seed + 0x9e3779b9);
+  // A third sequence for the cymatics modes, so the other options for a seed stay the same as before rings had their own modes.
+  const modeRng = createRng(seed + 0x7f4a7c15);
   const radii = ringRadii(RADIUS, count, spacing);
   const rings: RingSpec[] = [];
   for (let i = 0; i < count; i++) {
     const motif = pick(rng, motifs.filter((name) => name !== rings[i - 1]?.motif));
-    const options = legibleRepeats(motif, radii[i], radii[i + 1], symmetry);
-    rings.push({ motif, repeat: pick(rng, options.slice(0, 3)) });
+    const options: RingOptions = randomOptions
+      ? {
+          petalTip: pick(optionRng, ["pointed", "round"] as const),
+          innerOutline: pick(optionRng, [true, false]),
+          dots: pick(optionRng, [true, false]),
+          waveDepth: pick(optionRng, WAVE_DEPTHS),
+          cymaticsN: pick(modeRng, CYMATICS_MODES),
+          cymaticsM: pick(modeRng, CYMATICS_MODES),
+        }
+      : DEFAULT_RING_OPTIONS;
+    rings.push({ motif, count: pick(rng, legibleCounts(motif, radii[i], radii[i + 1])), ...options });
   }
   return rings;
 }
 
-/** Changes each ring's repeat count to the closest one at which its motif is legible in that ring. */
-export function fitRepeats(rings: RingSpec[], symmetry: number, spacing: Spacing): RingSpec[] {
-  const radii = ringRadii(RADIUS, rings.length, spacing);
-  return rings.map((ring, i) => {
-    const options = legibleRepeats(ring.motif, radii[i], radii[i + 1], symmetry);
-    if (options.includes(ring.repeat)) return ring;
-    const repeat = options.reduce((best, k) => (Math.abs(k - ring.repeat) < Math.abs(best - ring.repeat) ? k : best));
-    return { ...ring, repeat };
-  });
+/** Black lines on white paper, as RGB values from 0 to 255. Every line has round ends and round corners. */
+export const INK: readonly [number, number, number] = [0, 0, 0];
+export const PAPER: readonly [number, number, number] = [255, 255, 255];
+
+/** Lines drawn with 1 width and 1 mask, or filled circles in the ink color. Only circles can be filled. */
+export type Stroke =
+  | {
+      kind: "lines";
+      path: Path;
+      /** Line width in drawing units. */
+      width: number;
+      /** Inner and outer radius of the ring that the lines are masked to, or null for no mask. The inner radius is 0 for a disk. */
+      mask: [number, number] | null;
+    }
+  | { kind: "disks"; disks: Disk[] };
+
+/** A ring, the center, or the borders. key changes whenever any setting that affects its strokes changes. */
+export interface Layer {
+  key: string;
+  strokes: Stroke[];
 }
 
-export function renderMandala(params: MandalaParams): string {
+/** Layers from the previous call. A ring or center whose settings did not change reuses its layer. */
+let cache = new Map<string, Layer>();
+
+/**
+ * Everything the mandala draws, in drawing units centered on (0, 0). The outputs (the WebGL drawing and the
+ * SVG file) only convert these layers; every decision about the design is made here.
+ */
+export function mandalaLayers(params: MandalaParams): Layer[] {
   const radii = ringRadii(RADIUS, params.rings.length, params.spacing);
   const weight = params.lineWeight;
   const contrast = params.lineContrast;
   const borderWeight = weight * (1 + 0.8 * contrast);
   const detailWeight = weight * (1 - 0.4 * contrast);
+  const outerWeight = weight * (1 + 1.4 * contrast);
   // Distance between the 2 lines of a double border, and between a border and its pattern.
   const borderGap = params.borderSpacing ? borderWeight * 2 + 3 : 0;
   // The pattern gap is measured between the edges of the strokes, so it stays the same at every line weight.
   const patternGap = params.borderSpacing ? borderGap / 2 + borderWeight / 2 + weight / 2 + 3 : 0;
 
-  const main: string[] = [];
-  const detail: string[] = [];
-  const borders: string[] = [];
-
-  const border = (r: number) => {
-    if (params.borderSpacing) borders.push(circle(0, 0, r - borderGap / 2), circle(0, 0, r + borderGap / 2));
-    else borders.push(circle(0, 0, r));
+  const next = new Map<string, Layer>();
+  const layer = (key: string, build: () => Stroke[]) => {
+    const found = cache.get(key) ?? next.get(key) ?? { key, strokes: build().filter((s) => (s.kind === "lines" ? !s.path.empty : s.disks.length > 0)) };
+    next.set(key, found);
+    return found;
   };
 
-  const center = drawCenter(radii[0] - patternGap, params);
-  main.push(center.lines);
-  border(radii[0]);
+  const r0 = radii[0] - patternGap;
+  const centerOptions: CenterOptions = {
+    center: params.center,
+    chladniN: params.chladniN,
+    chladniM: params.chladniM,
+    smooth: params.smooth,
+    rotations: params.rotations,
+    bindu: params.bindu,
+  };
+  const layers = [
+    layer(JSON.stringify(["center", r0, centerOptions, weight]), () => {
+      const lines = new Path();
+      const disks: Disk[] = [];
+      const { clip } = drawCenter({ lines, disks }, r0, centerOptions);
+      return [
+        { kind: "lines", path: lines, width: weight, mask: clip ? [0, r0] : null },
+        { kind: "disks", disks },
+      ];
+    }),
+  ];
 
   params.rings.forEach((spec, i) => {
-    const output = MOTIFS[spec.motif]({
+    // The inner edges of the border lines' strokes. Every pattern is masked here, so no line crosses a border line.
+    const clip: [number, number] = [radii[i] + borderGap / 2 + borderWeight / 2, radii[i + 1] - borderGap / 2 - borderWeight / 2];
+    const ring: RingContext = {
       r1: radii[i] + patternGap,
       r2: radii[i + 1] - patternGap,
-      count: params.symmetry * spec.repeat,
+      count: Math.max(minCount(spec.motif), spec.count),
       offset: i % 2 === 1,
-      // The inner edges of the border lines' strokes.
-      clip: [radii[i] + borderGap / 2 + borderWeight / 2, radii[i + 1] - borderGap / 2 - borderWeight / 2],
-      id: `ring-${i}`,
-      style: params,
-    });
-    main.push(output.main);
-    detail.push(output.detail);
-    border(radii[i + 1]);
+      clip,
+      style: {
+        petalTip: spec.petalTip,
+        innerOutline: spec.innerOutline,
+        dots: spec.dots,
+        waveDepth: spec.waveDepth,
+        cymaticsN: spec.cymaticsN,
+        cymaticsM: spec.cymaticsM,
+        smooth: params.smooth,
+        minDetail: params.minDetail,
+      },
+    };
+    layers.push(
+      layer(JSON.stringify([spec.motif, ring, weight, detailWeight]), () => {
+        const main = new Path();
+        const detail = new Path();
+        MOTIFS[spec.motif](ring, { main, detail });
+        return [
+          { kind: "lines", path: main, width: weight, mask: clip },
+          { kind: "lines", path: detail, width: detailWeight, mask: clip },
+        ];
+      }),
+    );
   });
 
-  const size = RADIUS + MARGIN;
-  const outerWeight = weight * (1 + 1.4 * contrast);
-  return [
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-size} ${-size} ${size * 2} ${size * 2}" width="${size * 2}" height="${size * 2}">`,
-    `<rect x="${-size}" y="${-size}" width="${size * 2}" height="${size * 2}" fill="#fff"/>`,
-    `<g fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round">`,
-    `<g stroke-width="${detailWeight}">${detail.join("")}</g>`,
-    `<g stroke-width="${weight}">${main.join("")}</g>`,
-    `<g stroke-width="${borderWeight}">${borders.join("")}</g>`,
-    `<g stroke-width="${outerWeight}">${circle(0, 0, RADIUS + 12)}</g>`,
-    `</g>`,
-    `<g fill="#000" stroke="none">${center.filled}</g>`,
-    `</svg>`,
-  ].join("");
+  const borderRadii = radii.slice(0, params.rings.length + 1);
+  layers.push(
+    layer(JSON.stringify(["borders", borderRadii, borderGap, borderWeight, outerWeight]), () => {
+      const borders = new Path();
+      for (const r of borderRadii) {
+        if (params.borderSpacing) {
+          borders.circle(0, 0, r - borderGap / 2);
+          borders.circle(0, 0, r + borderGap / 2);
+        } else borders.circle(0, 0, r);
+      }
+      const outer = new Path();
+      outer.circle(0, 0, RADIUS + 12);
+      return [
+        { kind: "lines", path: borders, width: borderWeight, mask: null },
+        { kind: "lines", path: outer, width: outerWeight, mask: null },
+      ];
+    }),
+  );
+
+  cache = next;
+  return layers;
 }

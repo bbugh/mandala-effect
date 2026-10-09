@@ -1,9 +1,10 @@
 import { describe, expect, test } from "vitest";
+import { DEFAULT_RING_OPTIONS } from "./geometry/motifs";
 import { autoRings, type MandalaParams } from "./render";
-import { settingsFromText, settingsToLink, settingsToText } from "./settings";
+import { settingsFromText, settingsToLink } from "./settings";
 
 const params: MandalaParams = {
-  symmetry: 12,
+  rotations: 12,
   spacing: "golden",
   center: "flowerOfLife",
   chladniN: 3,
@@ -11,47 +12,29 @@ const params: MandalaParams = {
   seed: 108,
   lineWeight: 1.5,
   lineContrast: 1,
-  rings: autoRings(108, 5, 12, "golden"),
-  petalTip: "pointed",
-  innerOutline: true,
-  dots: false,
-  waveDepth: 0.36,
+  rings: autoRings(108, 5, "golden"),
   bindu: true,
   borderSpacing: true,
   smooth: true,
   minDetail: false,
 };
 
-describe("settings text", () => {
-  test("copying and pasting restores every setting", () => {
-    const changed: MandalaParams = { ...params, symmetry: 9, spacing: "even", center: "seedOfLife", innerOutline: false, dots: true };
-    expect(settingsFromText(settingsToText(changed), params)).toEqual(changed);
-  });
-
+describe("settings links", () => {
   test("text that is not settings is rejected", () => {
     expect(settingsFromText("hello", params)).toBeNull();
-    expect(settingsFromText("[1, 2]", params)).toBeNull();
-    expect(settingsFromText('{"color": "red"}', params)).toBeNull();
-  });
-
-  test("invalid fields keep their current values", () => {
-    const result = settingsFromText('{"symmetry": 8, "center": "square", "rings": [{"motif": "lotus", "repeat": 99}]}', params);
-    expect(result?.symmetry).toBe(8);
-    expect(result?.center).toBe("flowerOfLife");
-    expect(result?.rings).toEqual(params.rings);
   });
 
   test("a link restores every setting", () => {
-    const changed: MandalaParams = { ...params, symmetry: 9, center: "sriYantra", rings: [{ motif: "flowerBand", repeat: 4 }], minDetail: false };
+    const changed: MandalaParams = { ...params, rotations: 9, center: "sriYantra", rings: [{ motif: "flowerBand", count: 37, ...DEFAULT_RING_OPTIONS }], minDetail: false };
     const link = settingsToLink(changed, "http://brianbugh.me/mandala-effect/#old");
-    expect(link).toMatch(/^http:\/\/brianbugh\.me\/mandala-effect\/#2[A-Za-z0-9_-]+$/);
+    expect(link).toMatch(/^http:\/\/brianbugh\.me\/mandala-effect\/#5[A-Za-z0-9_-]+$/);
     expect(settingsFromText(link, params)).toEqual(changed);
   });
 
   test("a short code restores every setting at the ends of each range", () => {
     const changed: MandalaParams = {
       ...params,
-      symmetry: 24,
+      rotations: 24,
       spacing: "even",
       center: "cymatics",
       chladniN: 12,
@@ -59,31 +42,64 @@ describe("settings text", () => {
       seed: 99999,
       lineWeight: 4,
       lineContrast: 2,
-      rings: Array.from({ length: 8 }, (_, i) => ({ motif: i % 2 ? "cymatics" : "lotus", repeat: i % 2 ? 12 : 1 })),
-      petalTip: "round",
-      innerOutline: false,
-      dots: true,
-      waveDepth: 0.5,
+      rings: Array.from({ length: 8 }, (_, i) => ({
+        motif: i % 2 ? "cymatics" : "lotus",
+        count: i % 2 ? 200 : 1,
+        petalTip: i % 2 ? "round" : "pointed",
+        innerOutline: i % 2 === 0,
+        dots: i % 2 === 1,
+        waveDepth: i % 2 ? 0.5 : 0.1,
+        cymaticsN: i % 2 ? 12 : 1,
+        cymaticsM: i % 2 ? 1 : 12,
+      })),
       bindu: false,
       borderSpacing: false,
       minDetail: true,
     };
     const link = settingsToLink(changed, "http://brianbugh.me/mandala-effect/");
-    expect(link.length).toBeLessThan(70);
+    expect(link.length).toBeLessThan(90);
     expect(settingsFromText(link, params)).toEqual(changed);
   });
 
-  test("a version 1 link opens with its detail setting as inner outline and dots", () => {
+  test("a version 1 link opens with its detail setting as inner outline and dots, and symmetry × multiplier copies", () => {
     const link = (code: string) => `http://brianbugh.me/mandala-effect/#${code}`;
-    expect(settingsFromText(link("1YBqAGxFBuhKmRZAw"), params)).toEqual({ ...params, innerOutline: false, dots: false });
-    expect(settingsFromText(link("1YBqAGxFFuhKmRZAw"), params)).toEqual({ ...params, innerOutline: true, dots: false });
-    expect(settingsFromText(link("1YBqAGxFJuhKmRZAw"), params)).toEqual({ ...params, innerOutline: true, dots: true });
+    // Symmetry 12 and the multipliers 3, 4, 2, 3, 4.
+    // Every ring gets the link's tips (pointed), wave depth (0.36), inner outline, and dots.
+    const opened = (innerOutline: boolean, dots: boolean) => ({
+      ...params,
+      rotations: 12,
+      rings: [
+        { motif: "scallops", count: 36 },
+        { motif: "dots", count: 48 },
+        { motif: "scallops", count: 24 },
+        { motif: "lattice", count: 36 },
+        { motif: "lotus", count: 48 },
+      ].map((ring) => ({ ...ring, petalTip: "pointed", waveDepth: 0.36, innerOutline, dots, cymaticsN: 3, cymaticsM: 5 })),
+    });
+    expect(settingsFromText(link("1YBqAGxFBuhKmRZAw"), params)).toEqual(opened(false, false));
+    expect(settingsFromText(link("1YBqAGxFFuhKmRZAw"), params)).toEqual(opened(true, false));
+    expect(settingsFromText(link("1YBqAGxFJuhKmRZAw"), params)).toEqual(opened(true, true));
   });
 
-  test("settings text from before version 2 opens with its detail setting as inner outline and dots", () => {
-    expect(settingsFromText('{"detail": 0}', params)).toMatchObject({ innerOutline: false, dots: false });
-    expect(settingsFromText('{"detail": 1}', { ...params, innerOutline: false })).toMatchObject({ innerOutline: true, dots: false });
-    expect(settingsFromText('{"detail": 2}', params)).toMatchObject({ innerOutline: true, dots: true });
+  test("a version 3 link opens with its shared tips, inner outline, dots, wave depth, and the center's cymatics modes in every ring", () => {
+    const shared = { petalTip: "round", innerOutline: false, dots: true, waveDepth: 0.2, cymaticsN: 7, cymaticsM: 2 } as const;
+    // Version 3 layout: the same fields as version 4, with the shared ring options after line contrast, and 8 bits per ring count.
+    const bits: number[] = [];
+    const write = (value: number, count: number) => {
+      for (let i = count - 1; i >= 0; i--) bits.push((value >> i) & 1);
+    };
+    write(12, 5); write(0, 1); write(0, 3); write(7, 4); write(2, 4); write(108, 17); write(4, 4); write(10, 5);
+    write(1, 1); write(0, 1); write(1, 1); write(5, 5);
+    write(1, 1); write(1, 1); write(0, 1);
+    write(1, 3); write(0, 3); write(39, 8); write(3, 3); write(15, 8);
+    while (bits.length % 6) bits.push(0);
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    let code = "3";
+    for (let i = 0; i < bits.length; i += 6) code += chars[parseInt(bits.slice(i, i + 6).join(""), 2)];
+    expect(settingsFromText(code, params)?.rings).toEqual([
+      { motif: "lotus", count: 40, ...shared },
+      { motif: "lattice", count: 16, ...shared },
+    ]);
   });
 
   test("a code with an unknown version is rejected", () => {

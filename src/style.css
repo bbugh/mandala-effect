@@ -148,7 +148,7 @@ button:active:not(:disabled) {
   background: #5a2f19;
 }
 
-.seed-row button:hover:not(:disabled) {
+.section-head button:hover:not(:disabled) {
   background: var(--paper);
   border-color: var(--accent);
   color: var(--accent);
@@ -164,6 +164,36 @@ input:focus-visible,
 select:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+.title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 20px;
+}
+
+.title-row h1 {
+  margin: 0;
+}
+
+button.icon-button {
+  display: grid;
+  place-items: center;
+  padding: 6px;
+  background: transparent;
+  border-color: transparent;
+  color: var(--accent);
+}
+
+button.icon-button svg[hidden] {
+  display: none;
+}
+
+button.icon-button:hover:not(:disabled) {
+  background: var(--line);
+  border-color: transparent;
 }
 
 button.wide {
@@ -182,46 +212,114 @@ select:disabled {
   gap: 16px;
 }
 
-.ring-table {
-  width: 100%;
-  border-collapse: collapse;
+.rings {
   margin-bottom: 14px;
-  font-size: 14px;
 }
 
-.ring-table th {
+.ring-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ring-item {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.ring-item.selected {
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.ring-list .ring-button {
+  display: block;
+  width: 100%;
   text-align: left;
-  font-weight: 500;
-  color: var(--muted);
-  padding: 4px 6px 4px 0;
+  font-weight: 400;
+  padding: 7px 10px;
+  background: none;
+  color: inherit;
+  border: none;
+  white-space: pre;
+}
+
+.ring-list .ring-button:hover:not(:disabled) {
+  background: none;
+  color: var(--accent);
+}
+
+.ring-item.selected .ring-button {
+  font-weight: 600;
+}
+
+.ring-item[hidden],
+.ring-editor [hidden] {
+  display: none;
+}
+
+.ring-editor {
+  padding: 0 12px 12px;
+}
+
+.ring-editor > select {
+  margin-top: 0;
+}
+
+.ring-editor .copies {
+  margin: 10px 0 0;
+}
+
+.ring-editor .options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin-top: 10px;
+}
+
+.ring-editor .options label,
+.ring-editor .options label.check {
+  margin: 0;
+  font-weight: 400;
   white-space: nowrap;
 }
 
-.ring-table td {
-  padding: 3px 0 3px 6px;
-}
-
-.ring-table select {
+.ring-editor .options select {
+  width: auto;
   margin-top: 0;
-  padding: 5px 6px;
+  padding: 4px 8px;
 }
 
-.ring-table td:last-child {
-  width: 72px;
+.ring-editor .options label.wave,
+.ring-editor .options label.mode {
+  flex: 1 1 100%;
+  white-space: normal;
 }
 
-.seed-row {
+#mandala canvas {
+  cursor: pointer;
+}
+
+.no-webgl {
+  color: var(--muted);
+}
+
+.section-head {
   display: flex;
-  gap: 10px;
-  align-items: flex-end;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
 }
 
-.seed-row label {
-  flex: 1;
+.section-head h2 {
+  margin: 0;
 }
 
-.seed-row button {
-  margin-bottom: 14px;
+.section-head button {
+  padding: 4px 10px;
+  font-size: 13px;
   background: transparent;
   color: var(--accent);
 }
@@ -230,6 +328,7 @@ select:disabled {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  margin-bottom: 12px;
 }
 
 .canvas {
@@ -238,41 +337,40 @@ select:disabled {
   padding: 32px;
 }
 
-.canvas svg {
+.canvas canvas {
   width: min(100%, calc(100vh - 64px));
   height: auto;
+  aspect-ratio: 1;
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.08), 0 8px 24px rgb(0 0 0 / 0.06);
 }
 
 @media (max-width: 760px) {
+  /* The mandala stays at the top of the screen and only the controls scroll. */
   .layout {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    min-height: 0;
   }
 
   .panel {
-    position: static;
+    flex: 1;
+    min-height: 0;
     max-height: none;
+    position: static;
     border-right: 0;
-    border-bottom: 1px solid var(--line);
+    border-top: 1px solid var(--line);
     padding: 16px;
   }
 
   .canvas {
     order: -1;
-    padding: 16px;
+    flex: none;
+    padding: 12px 16px;
   }
 
-  .canvas svg {
-    width: 100%;
+  .canvas canvas {
+    width: min(100%, 50dvh);
   }
 }
 
-.status:empty {
-  display: none;
-}
-
-.status {
-  margin: 8px 0 0;
-  font-size: 14px;
-  color: var(--muted);
-}
