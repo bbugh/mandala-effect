@@ -104,12 +104,20 @@ const countValue = element("output");
 const copies = element("label", "copies");
 copies.append("Spokes ", countValue, countInput);
 
-const tipSelect = element("select");
-tipSelect.add(new Option("Pointed tips", "pointed"));
-tipSelect.add(new Option("Round tips", "round"));
-tipSelect.setAttribute("aria-label", "Tips");
-const tipLabel = element("label", "tip");
-tipLabel.append(tipSelect);
+const tipField = element("fieldset", "radios");
+const tipLegend = element("legend");
+tipLegend.textContent = "Tips";
+tipField.append(tipLegend);
+const tipRadios = (["pointed", "round"] as const).map((tip) => {
+  const radio = element("input");
+  radio.type = "radio";
+  radio.name = "petalTip";
+  radio.value = tip;
+  const label = element("label", "check");
+  label.append(radio, tip === "pointed" ? " Pointed" : " Round");
+  tipField.append(label);
+  return radio;
+});
 /** A slider whose leftmost position turns an option off and whose other positions set its size. */
 function stepSlider(name: string, values: readonly number[]) {
   const input = element("input");
@@ -152,8 +160,8 @@ function modeSlider(name: string) {
 const modeN = modeSlider("Cymatics n");
 const modeM = modeSlider("Cymatics m");
 /** The label around each option's control, hidden when the option does not change the ring's pattern. */
-const optionLabels: Record<keyof RingOptions, HTMLLabelElement> = {
-  petalTip: tipLabel,
+const optionLabels: Record<keyof RingOptions, HTMLElement> = {
+  petalTip: tipField,
   innerOutline: innerOutlineSlider.label,
   dots: dotsSlider.label,
   waveDepth: waveLabel,
@@ -161,7 +169,7 @@ const optionLabels: Record<keyof RingOptions, HTMLLabelElement> = {
   cymaticsM: modeM.label,
 };
 const options = element("div", "options");
-options.append(tipLabel, innerOutlineSlider.label, dotsSlider.label, waveLabel, modeN.label, modeM.label);
+options.append(tipField, innerOutlineSlider.label, dotsSlider.label, waveLabel, modeN.label, modeM.label);
 
 editor.append(motifSelect, copies, options);
 ringRows.append(ringList);
@@ -175,7 +183,7 @@ function updateRing(changes: Partial<RingSpec>) {
 
 motifSelect.addEventListener("change", () => updateRing({ motif: motifSelect.value as MotifName }));
 countInput.addEventListener("input", () => updateRing({ count: Number(countInput.value) }));
-tipSelect.addEventListener("change", () => updateRing({ petalTip: tipSelect.value as PetalTip }));
+for (const radio of tipRadios) radio.addEventListener("change", () => updateRing({ petalTip: radio.value as PetalTip }));
 innerOutlineSlider.input.addEventListener("input", () => updateRing({ innerOutline: innerOutlineSlider.read() }));
 dotsSlider.input.addEventListener("input", () => updateRing({ dots: dotsSlider.read() }));
 waveInput.addEventListener("input", () => updateRing({ waveDepth: Number(waveInput.value) }));
@@ -199,7 +207,7 @@ function syncRingRows() {
   countInput.min = String(minCount(spec.motif));
   countInput.value = String(spec.count);
   countValue.textContent = String(spec.count);
-  tipSelect.value = spec.petalTip;
+  for (const radio of tipRadios) radio.checked = radio.value === spec.petalTip;
   innerOutlineSlider.show(spec.innerOutline);
   dotsSlider.show(spec.dots);
   waveInput.value = String(spec.waveDepth);

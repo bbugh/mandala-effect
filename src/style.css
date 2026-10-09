@@ -304,6 +304,11 @@ label[hidden],
   padding: 4px 8px;
 }
 
+.ring-editor .options fieldset.radios {
+  flex: 1 1 100%;
+  margin: 0;
+}
+
 .ring-editor .options label.wave,
 .ring-editor .options label.mode,
 .ring-editor .options label.steps {
