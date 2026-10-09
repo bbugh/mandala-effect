@@ -157,8 +157,8 @@ function modeSlider(name: string) {
   label.append(`${name} `, value, input);
   return { input, value, label };
 }
-const modeN = modeSlider("Cymatics n");
-const modeM = modeSlider("Cymatics m");
+const modeN = modeSlider("Wave 1");
+const modeM = modeSlider("Wave 2");
 /** The label around each option's control, hidden when the option does not change the ring's pattern. */
 const optionLabels: Record<keyof RingOptions, HTMLElement> = {
   petalTip: tipField,
