@@ -18,7 +18,7 @@ A web page that generates black-and-white line-art mandalas from exact geometry.
    - **Seed of Life / Flower of Life:** overlapping circles on a hexagonal grid.
    - **Phyllotaxis:** a sunflower seed head, dots placed at the golden angle (137.508°), with a Fibonacci number of dots.
 4. **Ring motifs.** A hidden variation seed picks a motif, a copy count, and the ring options for each ring. In the controls panel, each ring has its own motif menu, a Spokes slider (1 to 200), and its own ring options. A ring shows only the options that change its motif: lotus petals and arches have tips (Pointed and Round radio buttons), inner outlines, and dots; the diamond lattice has inner outlines and dots; the rose braid has wave depth, inner outlines, and dots; the dots ring has dots; the cymatics ring has its own Wave 1 and Wave 2 sliders (the plate's mode numbers n and m, 1 to 12, separate from the center's); the Flower of Life band has none.
-   - Inner outlines slider: Off, then 0.2 to 1 in steps of 0.2, the inner outline width as a multiple of the line weight.
+   - Inner outlines slider: Off, then 0.2 to 1 in steps of 0.1, the inner outline width as a multiple of the line weight.
    - Dots slider: Off, then 0.5, 0.75, 1, 1.25, 1.5, 1.75, and 2, the dot size as a multiple of the standard size. Dot outlines are 0.6 × the line weight.
    - On page load every ring uses pointed tips, inner outlines 0.6, dots Off, wave depth 0.36, and Wave 1 = 3 and Wave 2 = 5.
 
@@ -54,14 +54,11 @@ Vite and TypeScript, vanilla DOM, no framework. pnpm. Vitest for the link codes 
 
 ## Defaults and options
 
-The mandala shown on page load uses only these. Shuffle everything, Rings Shuffle, and rings added with the Number of rings slider use every option:
+The mandala shown on page load has the Flower of Life center, and its rings use only these patterns: lotus petals, arches, diamond lattice, dots. The mandala drawing guides name petals and teardrops, circles, lines, and triangles as the repeated patterns (`docs/vendor/stanford-cantor-mandala-art-project.pdf`, `docs/vendor/staedtler-how-to-draw-a-mandala.html`).
 
-1. Centers: Flower of Life, Seed of Life, sunflower spiral.
-2. Ring patterns: lotus petals, arches, diamond lattice, dots. The mandala drawing guides name petals and teardrops, circles, lines, and triangles as the repeated patterns (`docs/vendor/stanford-cantor-mandala-art-project.pdf`, `docs/vendor/staedtler-how-to-draw-a-mandala.html`).
+Center Shuffle, Rings Shuffle, Shuffle everything, and rings added with the Number of rings slider use every center and every ring pattern, including these:
 
-These are available in the controls panel only:
-
-1. Centers: Sri Yantra (`src/geometry/sriYantra.ts`, built from `docs/vendor/sri-chakra-geometry-ijsr-2023.txt` and tested against its tables), Chladni plate (Paul Bourke's formula, `docs/vendor/paulbourke-chladni.html`), and rotated cymatics (design choice, no source).
+1. Centers: Seed of Life, sunflower spiral, Sri Yantra (`src/geometry/sriYantra.ts`, built from `docs/vendor/sri-chakra-geometry-ijsr-2023.txt` and tested against its tables), Chladni plate (Paul Bourke's formula, `docs/vendor/paulbourke-chladni.html`), and rotated cymatics (design choice, no source).
 2. Ring patterns: Flower of Life band, rose curve braid, cymatics ring (design choices, no source).
 
 ## Sources
