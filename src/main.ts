@@ -366,12 +366,11 @@ for (const [section, shuffle] of Object.entries(shuffles)) {
   });
 }
 
-// Picks every setting at random, including the "Hide difficult to print details" checkbox.
+// Picks every design setting at random. The "Hide difficult to print details" checkbox changes only when the user clicks it.
 $<HTMLButtonElement>("shuffle-all").addEventListener("click", () => {
   shuffleLines();
   shuffleCenter();
   shuffleRings();
-  params.minDetail = randomItem([true, false]);
   draw();
 });
 
