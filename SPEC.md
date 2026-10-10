@@ -17,6 +17,7 @@ A web page that generates black-and-white line-art mandalas from exact geometry.
    - **Cymatics, rotated:** the same plate function summed over rotated copies. The Rotations slider (3 to 24) sets the number of copies. At high counts this figure becomes mostly concentric wavy circles.
    - **Seed of Life / Flower of Life:** overlapping circles on a hexagonal grid.
    - **Phyllotaxis:** a sunflower seed head, dots placed at the golden angle (137.508°), with a Fibonacci number of dots.
+   - **Metatron's Cube:** the 13 circles of the Fruit of Life (1 in the middle, then 6 and 6 more in the same 6 directions, each circle touching its neighbors in that direction), with a straight line from every circle's center to every other circle's center. A corner points up. The outer circles touch the edge of the center medallion.
 4. **Ring motifs.** A hidden variation seed picks a motif, a copy count, and the ring options for each ring. In the controls panel, each ring has its own motif menu, a Spokes slider (1 to 200), and its own ring options. A ring shows only the options that change its motif: lotus petals and arches have tips (Pointed and Round radio buttons), inner outlines, and dots; the diamond lattice has inner outlines and dots; the rose braid has wave depth, inner outlines, and dots; the dots ring has dots; the cymatics ring has its own Wave 1 and Wave 2 sliders (the plate's mode numbers n and m, 1 to 12, separate from the center's); the Flower of Life band has none.
    - Inner outlines slider: Off, then 0.2 to 1 in steps of 0.1, the inner outline width as a multiple of the line weight.
    - Dots slider: Off, then 0.5, 0.75, 1, 1.25, 1.5, 1.75, and 2, the dot size as a multiple of the standard size. Dot outlines are 0.6 × the line weight.
@@ -59,7 +60,7 @@ The mandala shown on page load has the Flower of Life center, and its rings use 
 
 Center Shuffle, Rings Shuffle, Shuffle everything, and rings added with the Number of rings slider use every center and every ring pattern, including these:
 
-1. Centers: Seed of Life, sunflower spiral, Sri Yantra (`src/geometry/sriYantra.ts`, built from `docs/vendor/sri-chakra-geometry-ijsr-2023.txt` and tested against its tables), Chladni plate (Paul Bourke's formula, `docs/vendor/paulbourke-chladni.html`), and rotated cymatics (design choice, no source).
+1. Centers: Seed of Life, sunflower spiral, Sri Yantra (`src/geometry/sriYantra.ts`, built from `docs/vendor/sri-chakra-geometry-ijsr-2023.txt` and tested against its tables), Metatron's Cube, Chladni plate (Paul Bourke's formula, `docs/vendor/paulbourke-chladni.html`), and rotated cymatics (design choice, no source).
 2. Ring patterns: Flower of Life band, rose curve braid, cymatics ring (design choices, no source).
 
 ## Sources

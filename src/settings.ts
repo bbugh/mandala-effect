@@ -14,7 +14,7 @@ const BASE64URL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012345678
 /** Highest variation number a link can store. */
 export const MAX_SEED = 99999;
 
-const CENTERS: CenterName[] = ["flowerOfLife", "seedOfLife", "phyllotaxis", "sriYantra", "chladni", "cymatics"];
+const CENTERS: CenterName[] = ["flowerOfLife", "seedOfLife", "phyllotaxis", "sriYantra", "chladni", "cymatics", "metatron"];
 const MOTIFS: MotifName[] = ["lotus", "scallops", "flowerBand", "lattice", "roseBraid", "dots", "cymatics"];
 
 /** Each field of a code version, in order: how to turn the value into a whole number, and how many bits it uses. */

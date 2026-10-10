@@ -1,16 +1,17 @@
 // Central figures. Each fills a circle of radius r0 centered on (0, 0).
 
 import { drawLines, zeroContour } from "./contour";
-import { type Disk, type Pen, polyline } from "./pen";
+import { type Disk, type Pen, polar, polyline } from "./pen";
 import { sriYantra } from "./sriYantra";
 
-export type CenterName = "flowerOfLife" | "seedOfLife" | "phyllotaxis" | "sriYantra" | "chladni" | "cymatics";
+export type CenterName = "flowerOfLife" | "seedOfLife" | "phyllotaxis" | "sriYantra" | "chladni" | "cymatics" | "metatron";
 
 export const CENTER_LABELS: Record<CenterName, string> = {
   flowerOfLife: "Flower of Life",
   seedOfLife: "Seed of Life",
   phyllotaxis: "Sunflower spiral",
   sriYantra: "Sri Yantra",
+  metatron: "Metatron's Cube",
   chladni: "Cymatics: Chladni plate",
   cymatics: "Cymatics: rotated",
 };
@@ -60,6 +61,25 @@ function hexCircles(pen: Pen, r0: number, rings: 1 | 2): CenterOutput {
     }
   }
   return { clip: true };
+}
+
+/**
+ * Metatron's Cube: the 13 circles of the Fruit of Life (1 in the middle, then 6 and 6 more on the same 6
+ * directions, each circle touching its neighbors on that direction), with a straight line from every circle's
+ * center to every other circle's center. The outer circles touch the edge of the center circle.
+ */
+function metatron(pen: Pen, r0: number): CenterOutput {
+  const rho = r0 / 5;
+  const centers: [number, number][] = [[0, 0]];
+  for (const distance of [2 * rho, 4 * rho]) {
+    // A corner points up, as in the usual drawing of the figure.
+    for (let k = 0; k < 6; k++) centers.push(polar(distance, -Math.PI / 2 + (k * Math.PI) / 3));
+  }
+  for (const [x, y] of centers) pen.circle(x, y, rho);
+  for (let i = 0; i < centers.length; i++) {
+    for (let j = i + 1; j < centers.length; j++) polyline(pen, [centers[i], centers[j]], false);
+  }
+  return { clip: false };
 }
 
 /** Vogel's model (1979): seed n at r = c·√n, θ = n × 137.508°. 233 is a Fibonacci number. */
@@ -164,5 +184,7 @@ export function drawCenter(pens: CenterPens, r0: number, options: CenterOptions)
       return phyllotaxis(pens.lines, r0);
     case "cymatics":
       return cymaticsRotated(pens.lines, r0, options.chladniN, options.chladniM, options.rotations, options.smooth);
+    case "metatron":
+      return metatron(pens.lines, r0);
   }
 }
