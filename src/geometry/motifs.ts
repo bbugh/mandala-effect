@@ -27,6 +27,14 @@ export const MOTIF_LABELS: Record<MotifName, string> = {
 
 export const MOTIF_NAMES = Object.keys(MOTIF_LABELS) as MotifName[];
 
+/** The groups of the ring pattern dropdown. Each group lists its patterns in alphabetical order of their labels. */
+export const MOTIF_GROUPS: readonly { label: string; motifs: readonly MotifName[] }[] = [
+  { label: "Nature", motifs: ["vine", "lotus", "peacock"] },
+  { label: "Geometric", motifs: ["scallops", "cymatics", "lattice", "dots", "greekKey", "sawtooth", "spirograph", "stars"] },
+  { label: "Braids", motifs: ["celtic", "roseBraid"] },
+  { label: "Sacred", motifs: ["flowerBand", "vajra"] },
+];
+
 /**
  * Patterns of the starting design: petals and teardrops, circles, triangles, and
  * arches, as named in the mandala drawing guides (docs/vendor/stanford-cantor-mandala-art-project.pdf,

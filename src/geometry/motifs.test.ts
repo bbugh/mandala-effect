@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { DEFAULT_RING_OPTIONS, INTERVAL_NAMES, MOTIFS, type RingContext } from "./motifs";
+import { DEFAULT_RING_OPTIONS, INTERVAL_NAMES, MOTIF_GROUPS, MOTIF_LABELS, MOTIF_NAMES, MOTIFS, type RingContext } from "./motifs";
 import { Path, type Pen } from "./pen";
 
 /** A pen that records the distance of every point from the center. */
@@ -74,6 +74,17 @@ describe("new ring patterns", () => {
           expect(Math.max(...radii), `${motif} ${count}`).toBeLessThanOrEqual(380 + 1e-9);
         }
       }
+    }
+  });
+});
+
+describe("ring pattern groups", () => {
+  test("every pattern is in 1 group, and each group is in alphabetical order", () => {
+    const grouped = MOTIF_GROUPS.flatMap((group) => group.motifs);
+    expect([...grouped].sort()).toEqual([...MOTIF_NAMES].sort());
+    for (const group of MOTIF_GROUPS) {
+      const labels = group.motifs.map((name) => MOTIF_LABELS[name]);
+      expect(labels, group.label).toEqual([...labels].sort((a, b) => a.localeCompare(b)));
     }
   });
 });

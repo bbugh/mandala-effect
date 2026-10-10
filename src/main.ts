@@ -5,6 +5,7 @@ import {
   INNER_OUTLINE_STEPS,
   MAX_COUNT,
   minCount,
+  MOTIF_GROUPS,
   MOTIF_LABELS,
   MOTIF_NAMES,
   MOTIF_OPTIONS,
@@ -111,7 +112,12 @@ const editor = element("div", "ring-editor");
 
 const motifSelect = element("select");
 motifSelect.setAttribute("aria-label", "Pattern");
-for (const name of MOTIF_NAMES) motifSelect.add(new Option(MOTIF_LABELS[name], name));
+for (const group of MOTIF_GROUPS) {
+  const optgroup = element("optgroup");
+  optgroup.label = group.label;
+  for (const name of group.motifs) optgroup.append(new Option(MOTIF_LABELS[name], name));
+  motifSelect.append(optgroup);
+}
 
 const countInput = element("input");
 countInput.type = "range";
