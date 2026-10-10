@@ -17,11 +17,13 @@ import {
   type PetalTip,
   type RingOptions,
 } from "./geometry/motifs";
+import { GATE_LABELS, GATE_STYLES, type GateStyle } from "./geometry/bhupura";
+import { FRAME_COUNTS, FRAME_LABELS, FRAME_NAMES, type FrameName } from "./geometry/frames";
 import { ringRadii, type Spacing } from "./geometry/rings";
 import { downloadPng, downloadSvg } from "./export";
 import { Renderer } from "./gl";
 import { MAX_SEED, settingsFromText, settingsToCode, settingsToLink } from "./settings";
-import { autoRings, BORDER_SPACING_STEPS, DRAWING_SIZE, type MandalaParams, mandalaLayers, RADIUS, type RingSpec } from "./render";
+import { autoRings, BORDER_SPACING_STEPS, drawingSize, type MandalaParams, mandalaLayers, RADIUS, type RingSpec } from "./render";
 
 const MAX_RINGS = 8;
 
@@ -40,6 +42,13 @@ const params: MandalaParams = {
   /** Always on; at screen and print size the unsmoothed lines looked the same. */
   smooth: true,
   minDetail: false,
+  frame: "none",
+  gate: "closed",
+  trivalaya: true,
+  frameCount: 16,
+  frameTip: "pointed",
+  frameInnerOutline: 0.6,
+  frameDots: 0,
 };
 
 /** Ring settings beyond the current ring count, kept so that adding rings back restores them. */
@@ -61,6 +70,10 @@ try {
   view.replaceChildren(message);
 }
 const centerSelect = $<HTMLSelectElement>("center");
+const frameSelect = $<HTMLSelectElement>("frame");
+for (const name of FRAME_NAMES) frameSelect.add(new Option(FRAME_LABELS[name], name));
+const gateSelect = $<HTMLSelectElement>("gate");
+for (const name of GATE_STYLES) gateSelect.add(new Option(GATE_LABELS[name], name));
 const ringRows = $<HTMLDivElement>("ring-rows");
 
 for (const [value, label] of Object.entries(CENTER_LABELS)) {
@@ -261,8 +274,8 @@ function syncRingRows() {
 // Clicking a ring in the drawing selects it in the ring editor.
 canvas.addEventListener("click", (event) => {
   const box = canvas.getBoundingClientRect();
-  const x = ((event.clientX - box.left) / box.width - 0.5) * DRAWING_SIZE;
-  const y = ((event.clientY - box.top) / box.height - 0.5) * DRAWING_SIZE;
+  const x = ((event.clientX - box.left) / box.width - 0.5) * drawingSize(params);
+  const y = ((event.clientY - box.top) / box.height - 0.5) * drawingSize(params);
   const distance = Math.hypot(x, y);
   const radii = ringRadii(RADIUS, params.rings.length, params.spacing);
   const ring = radii.findIndex((r, i) => i < params.rings.length && distance >= r && distance < radii[i + 1]);
@@ -273,7 +286,7 @@ canvas.addEventListener("click", (event) => {
 
 // Line finish checkboxes
 
-const finishFields = ["minDetail", "bindu"] as const;
+const finishFields = ["minDetail", "bindu", "trivalaya"] as const;
 
 for (const field of finishFields) {
   $<HTMLInputElement>(field).addEventListener("change", (event) => {
@@ -296,6 +309,12 @@ function syncControls() {
   $<HTMLOutputElement>("ringCount-value").textContent = String(params.rings.length);
   for (const radio of spacingRadios) radio.checked = radio.value === params.spacing;
   centerSelect.value = params.center;
+  frameSelect.value = params.frame;
+  gateSelect.value = params.gate;
+  // The gate and trivalaya settings belong to the bhupura frame only.
+  gateSelect.closest("label")!.toggleAttribute("hidden", params.frame !== "bhupura");
+  $<HTMLInputElement>("trivalaya").closest("label")!.toggleAttribute("hidden", params.frame !== "bhupura");
+  syncFrameOptions();
   for (const field of finishFields) $<HTMLInputElement>(field).checked = params[field];
   borderSpacingInput.value = String(Math.max(0, BORDER_SPACING_STEPS.indexOf(params.borderSpacing)));
   $<HTMLOutputElement>("borderSpacing-value").textContent = params.borderSpacing ? String(params.borderSpacing) : "Off";
@@ -323,7 +342,7 @@ function paint() {
     canvas.width = pixels;
     canvas.height = pixels;
   }
-  renderer?.draw(mandalaLayers(params), DRAWING_SIZE, pixels);
+  renderer?.draw(mandalaLayers(params), drawingSize(params), pixels);
 }
 new ResizeObserver(paint).observe(canvas);
 
@@ -369,6 +388,66 @@ for (const radio of spacingRadios) {
     draw();
   });
 }
+
+gateSelect.addEventListener("change", () => {
+  params.gate = gateSelect.value as GateStyle;
+  draw();
+});
+
+frameSelect.addEventListener("change", () => {
+  params.frame = frameSelect.value as FrameName;
+  // Each frame with a count starts at its own starting count.
+  const range = FRAME_COUNTS[params.frame];
+  if (range) params.frameCount = range.start;
+  draw();
+});
+
+// The lotus petal and flame frames' settings: the count, and the lotus petals' tips, inner outlines, and dots,
+// the same as the Lotus petals ring's settings.
+
+const frameCountInput = $<HTMLInputElement>("frameCount");
+const frameTipRadios = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="frameTip"]'));
+const frameInnerOutlineInput = $<HTMLInputElement>("frameInnerOutline");
+const frameDotsInput = $<HTMLInputElement>("frameDots");
+frameInnerOutlineInput.max = String(INNER_OUTLINE_STEPS.length - 1);
+frameDotsInput.max = String(DOT_STEPS.length - 1);
+
+function syncFrameOptions() {
+  const range = FRAME_COUNTS[params.frame];
+  $("frameCount-label").toggleAttribute("hidden", !range);
+  if (range) {
+    $("frameCount-name").textContent = range.label;
+    frameCountInput.min = String(range.min);
+    frameCountInput.max = String(range.max);
+    frameCountInput.value = String(params.frameCount);
+    $("frameCount-value").textContent = String(params.frameCount);
+  }
+  for (const id of ["frameTip-label", "frameInnerOutline-label", "frameDots-label"]) $(id).toggleAttribute("hidden", params.frame !== "lotus");
+  for (const radio of frameTipRadios) radio.checked = radio.value === params.frameTip;
+  frameInnerOutlineInput.value = String(Math.max(0, (INNER_OUTLINE_STEPS as readonly number[]).indexOf(params.frameInnerOutline)));
+  $("frameInnerOutline-value").textContent = params.frameInnerOutline === 0 ? "Off" : String(params.frameInnerOutline);
+  frameDotsInput.value = String(Math.max(0, (DOT_STEPS as readonly number[]).indexOf(params.frameDots)));
+  $("frameDots-value").textContent = params.frameDots === 0 ? "Off" : String(params.frameDots);
+}
+
+frameCountInput.addEventListener("input", () => {
+  params.frameCount = Number(frameCountInput.value);
+  draw();
+});
+for (const radio of frameTipRadios) {
+  radio.addEventListener("change", () => {
+    params.frameTip = radio.value as PetalTip;
+    draw();
+  });
+}
+frameInnerOutlineInput.addEventListener("input", () => {
+  params.frameInnerOutline = INNER_OUTLINE_STEPS[Number(frameInnerOutlineInput.value)];
+  draw();
+});
+frameDotsInput.addEventListener("input", () => {
+  params.frameDots = DOT_STEPS[Number(frameDotsInput.value)];
+  draw();
+});
 
 centerSelect.addEventListener("change", () => {
   params.center = centerSelect.value as CenterName;
@@ -418,7 +497,23 @@ function shuffleRings() {
   stash = [];
 }
 
-const shuffles = { lines: shuffleLines, center: shuffleCenter, rings: shuffleRings };
+function shuffleFrame() {
+  // Always a different frame from the current one. "None" is one of the choices.
+  params.frame = randomItem(FRAME_NAMES.filter((name) => name !== params.frame));
+  if (params.frame === "bhupura") {
+    params.gate = randomItem(GATE_STYLES);
+    params.trivalaya = randomItem([true, false]);
+  }
+  const range = FRAME_COUNTS[params.frame];
+  if (range) params.frameCount = randomInt(range.min, range.max);
+  if (params.frame === "lotus") {
+    params.frameTip = randomItem(["pointed", "round"] as const);
+    params.frameInnerOutline = randomItem(INNER_OUTLINE_STEPS);
+    params.frameDots = randomItem(DOT_STEPS);
+  }
+}
+
+const shuffles = { lines: shuffleLines, center: shuffleCenter, rings: shuffleRings, frame: shuffleFrame };
 for (const [section, shuffle] of Object.entries(shuffles)) {
   $<HTMLButtonElement>(`shuffle-${section}`).addEventListener("click", () => {
     shuffle();
@@ -431,6 +526,7 @@ $<HTMLButtonElement>("shuffle-all").addEventListener("click", () => {
   shuffleLines();
   shuffleCenter();
   shuffleRings();
+  shuffleFrame();
   draw();
 });
 
@@ -457,9 +553,9 @@ shareButton.addEventListener("click", () => {
 
 const filename = (extension: string) => `mandala-${settingsToCode(params)}.${extension}`;
 
-$<HTMLButtonElement>("export-svg").addEventListener("click", () => downloadSvg(mandalaLayers(params), filename("svg")));
+$<HTMLButtonElement>("export-svg").addEventListener("click", () => downloadSvg(mandalaLayers(params), drawingSize(params), filename("svg")));
 $<HTMLButtonElement>("export-png").addEventListener("click", () => {
-  downloadPng(mandalaLayers(params), filename("png")).catch((error) => alert(`PNG export failed: ${error.message}`));
+  downloadPng(mandalaLayers(params), drawingSize(params), filename("png")).catch((error) => alert(`PNG export failed: ${error.message}`));
 });
 
 // A link opens the page with its settings. Back, Forward, and a link pasted into the address bar while

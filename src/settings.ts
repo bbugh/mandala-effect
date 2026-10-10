@@ -1,6 +1,8 @@
 // Settings as a short code in the page link, so a link opens the same mandala.
 
 import { CENTER_LABELS, type CenterName } from "./geometry/centers";
+import { GATE_STYLES } from "./geometry/bhupura";
+import { FRAME_NAMES } from "./geometry/frames";
 import { DEFAULT_RING_OPTIONS, DOT_STEPS, INNER_OUTLINE_STEPS, INTERVAL_NAMES, STAR_POINTS, STRANDS, MAX_COUNT, MOTIF_NAMES, type MotifName, type RingOptions } from "./geometry/motifs";
 import { BORDER_SPACING_STEPS, type MandalaParams, type RingSpec } from "./render";
 
@@ -32,7 +34,7 @@ const weightSteps = steps(0.5, 0.25);
 const contrastSteps = steps(0, 0.1);
 const waveSteps = steps(0.1, 0.02);
 
-const flag = (name: "bindu" | "borderSpacing" | "minDetail"): Field => ({
+const flag = (name: "bindu" | "borderSpacing" | "minDetail" | "trivalaya"): Field => ({
   bits: 1,
   get: (p) => (p[name] ? 1 : 0),
   set: (d, v) => (d[name] = v === 1),
@@ -63,6 +65,17 @@ const SHARED_FIELDS: Field[] = [
   { bits: 17, get: (p) => Math.min(p.seed, MAX_SEED), set: (d, v) => (d.seed = v) },
   { bits: 4, get: (p) => weightSteps.toInt(p.lineWeight), set: (d, v) => (d.lineWeight = weightSteps.fromInt(v)) },
   { bits: 5, get: (p) => contrastSteps.toInt(p.borderThickness), set: (d, v) => (d.borderThickness = contrastSteps.fromInt(v)) },
+];
+
+const FRAME_FIELD: Field = { bits: 3, get: (p) => FRAME_NAMES.indexOf(p.frame), set: (d, v) => (d.frame = FRAME_NAMES[v]) };
+
+const GATE_FIELD: Field = { bits: 2, get: (p) => GATE_STYLES.indexOf(p.gate), set: (d, v) => (d.gate = GATE_STYLES[v]) };
+/** The frame's count and lotus petal settings, stored from version 7. */
+const FRAME_RING_FIELDS: Field[] = [
+  { bits: 7, get: (p) => p.frameCount, set: (d, v) => (d.frameCount = v) },
+  { bits: 1, get: (p) => (p.frameTip === "round" ? 1 : 0), set: (d, v) => (d.frameTip = v ? "round" : "pointed") },
+  { bits: 4, get: (p) => Math.max(0, (INNER_OUTLINE_STEPS as readonly number[]).indexOf(p.frameInnerOutline)), set: (d, v) => (d.frameInnerOutline = INNER_OUTLINE_STEPS[v]) },
+  { bits: 3, get: (p) => Math.max(0, (DOT_STEPS as readonly number[]).indexOf(p.frameDots)), set: (d, v) => (d.frameDots = DOT_STEPS[v]) },
 ];
 
 /** Versions 1 to 6 store double borders as on or off; settingsFromText converts it to a border spacing. */
@@ -97,8 +110,8 @@ const FIELDS: Record<string, Field[]> = {
   "5": [ROTATIONS_FIELD, ...SHARED_FIELDS, ...FINAL_FIELDS],
   // Version 6 stores each ring's inner outline thickness and dot size instead of on or off.
   "6": [ROTATIONS_FIELD, ...SHARED_FIELDS, ...FINAL_FIELDS],
-  // Version 7 stores the border spacing instead of double borders on or off.
-  "7": [ROTATIONS_FIELD, ...SHARED_FIELDS, flag("bindu"), BORDER_SPACING_FIELD, flag("minDetail")],
+  // Version 7 stores the border spacing instead of double borders on or off, and the frame and its settings.
+  "7": [ROTATIONS_FIELD, ...SHARED_FIELDS, flag("bindu"), BORDER_SPACING_FIELD, flag("minDetail"), FRAME_FIELD, GATE_FIELD, flag("trivalaya"), ...FRAME_RING_FIELDS],
 };
 
 /** Each ring field of a code version, after the ring's pattern. */
@@ -298,6 +311,13 @@ const CHECKS: { [K in keyof MandalaParams]: (value: unknown) => boolean } = {
   borderSpacing: (value) => BORDER_SPACING_STEPS.includes(value as number),
   smooth: boolean,
   minDetail: boolean,
+  frame: oneOf(FRAME_NAMES),
+  gate: oneOf(GATE_STYLES),
+  trivalaya: boolean,
+  frameCount: (value) => Number.isInteger(value) && (value as number) >= 1 && (value as number) < 128,
+  frameTip: OPTION_CHECKS.petalTip,
+  frameInnerOutline: OPTION_CHECKS.innerOutline,
+  frameDots: OPTION_CHECKS.dots,
 };
 
 /**

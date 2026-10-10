@@ -17,6 +17,13 @@ const params: MandalaParams = {
   borderSpacing: 1,
   smooth: true,
   minDetail: false,
+  frame: "none",
+  gate: "closed",
+  trivalaya: true,
+  frameCount: 16,
+  frameTip: "pointed",
+  frameInnerOutline: 0.6,
+  frameDots: 0,
 };
 
 describe("settings links", () => {
@@ -58,6 +65,13 @@ describe("settings links", () => {
       bindu: false,
       borderSpacing: 2,
       minDetail: true,
+      frame: "lotus",
+      gate: "open",
+      trivalaya: false,
+      frameCount: 72,
+      frameTip: "round",
+      frameInnerOutline: 1,
+      frameDots: 2,
     };
     const link = settingsToLink(changed, "http://brianbugh.me/mandala-effect/");
     expect(link.length).toBeLessThan(110);

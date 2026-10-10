@@ -1,5 +1,7 @@
 import { type CenterName, type CenterOptions, drawCenter } from "./geometry/centers";
-import { DEFAULT_MOTIFS, DEFAULT_RING_OPTIONS, DOT_LINE, DOT_STEPS, INNER_OUTLINE_STEPS, INTERVAL_NAMES, legibleCounts, STAR_POINTS, STRANDS, minCount, MOTIFS, type MotifName, type RingContext, type RingOptions } from "./geometry/motifs";
+import type { GateStyle } from "./geometry/bhupura";
+import { drawFrame, frameExtent, type FrameName } from "./geometry/frames";
+import { DEFAULT_MOTIFS, DEFAULT_RING_OPTIONS, DOT_LINE, DOT_STEPS, INNER_OUTLINE_STEPS, INTERVAL_NAMES, legibleCounts, STAR_POINTS, STRANDS, minCount, MOTIFS, type MotifName, type PetalTip, type RingContext, type RingOptions } from "./geometry/motifs";
 import { type Disk, Path } from "./geometry/pen";
 import { ringRadii, type Spacing } from "./geometry/rings";
 import { createRng, pick } from "./rng";
@@ -33,12 +35,29 @@ export interface MandalaParams {
   smooth: boolean;
   /** Leave out details smaller than MIN_DETAIL. */
   minDetail: boolean;
+  /** Frame around the outer circle. */
+  frame: FrameName;
+  /** Gate style of the bhupura frame. */
+  gate: GateStyle;
+  /** The 3 circles inside the bhupura frame. */
+  trivalaya: boolean;
+  /** Number of lotus petals or flames in the frame. */
+  frameCount: number;
+  /** The lotus petal frame's tips, inner outline, and dots, the same as a Lotus petals ring's settings. */
+  frameTip: PetalTip;
+  frameInnerOutline: number;
+  frameDots: number;
 }
 
 export const RADIUS = 500;
 const MARGIN = 24;
-/** Width and height of the drawing in drawing units. */
-export const DRAWING_SIZE = 2 * (RADIUS + MARGIN);
+/** Radius of the outer circle, which the bhupura surrounds. */
+const OUTER_CIRCLE = RADIUS + 12;
+
+/** Width and height of the drawing in drawing units. A frame makes the drawing larger, so the mandala is drawn smaller. */
+export function drawingSize(params: Pick<MandalaParams, "frame" | "gate">): number {
+  return 2 * ((params.frame === "none" ? RADIUS : frameExtent(params.frame, OUTER_CIRCLE, params)) + MARGIN);
+}
 
 /** Positions of the border spacing slider: 0, then 0.1 to 2 in steps of 0.1. The leftmost position, 0, draws single borders. */
 export const BORDER_SPACING_STEPS: readonly number[] = Array.from({ length: 21 }, (_, k) => Number((k * 0.1).toFixed(1)));
@@ -214,9 +233,25 @@ export function mandalaLayers(params: MandalaParams): Layer[] {
         } else borders.circle(0, 0, r);
       }
       const outer = new Path();
-      outer.circle(0, 0, RADIUS + 12);
+      outer.circle(0, 0, OUTER_CIRCLE);
       return [
         { kind: "lines", path: borders, width: borderWeight, mask: null },
+        { kind: "lines", path: outer, width: outerWeight, mask: null },
+      ];
+    }),
+  );
+
+  layers.push(
+    layer(JSON.stringify(["frame", params.frame, params.gate, params.trivalaya, params.frameCount, params.frameTip, params.frameInnerOutline, params.frameDots, params.minDetail, weight, borderWeight, outerWeight]), () => {
+      const outer = new Path();
+      const border = new Path();
+      const detail = new Path();
+      const dots = new Path();
+      drawFrame(params.frame, { outer, border, detail, dots }, OUTER_CIRCLE, params);
+      return [
+        { kind: "lines", path: detail, width: weight * params.frameInnerOutline, mask: null },
+        { kind: "lines", path: dots, width: weight * DOT_LINE, mask: null },
+        { kind: "lines", path: border, width: borderWeight, mask: null },
         { kind: "lines", path: outer, width: outerWeight, mask: null },
       ];
     }),

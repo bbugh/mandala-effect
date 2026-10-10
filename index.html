@@ -75,6 +75,36 @@
             </label>
             <div id="ring-rows" class="rings"></div>
           </section>
+
+          <section>
+            <div class="section-head">
+              <h2>Frame</h2>
+              <button id="shuffle-frame" type="button">Shuffle</button>
+            </div>
+            <div class="frame-box">
+              <label>
+                <select id="frame" aria-label="Frame design"></select>
+              </label>
+              <label>Gates
+                <select id="gate"></select>
+              </label>
+              <label class="check"><input id="trivalaya" type="checkbox" /> Trivalaya (3 circles inside the square)</label>
+              <label id="frameCount-label"><span id="frameCount-name"></span> <output id="frameCount-value"></output>
+                <input id="frameCount" type="range" step="1" />
+              </label>
+              <fieldset id="frameTip-label" class="radios">
+                <legend>Tips</legend>
+                <label class="check"><input type="radio" name="frameTip" value="pointed" /> Pointed</label>
+                <label class="check"><input type="radio" name="frameTip" value="round" /> Round</label>
+              </fieldset>
+              <label id="frameInnerOutline-label">Inner outlines <output id="frameInnerOutline-value"></output>
+                <input id="frameInnerOutline" type="range" min="0" step="1" />
+              </label>
+              <label id="frameDots-label">Dots <output id="frameDots-value"></output>
+                <input id="frameDots" type="range" min="0" step="1" />
+              </label>
+            </div>
+          </section>
         </div>
 
         <section>

@@ -1,5 +1,5 @@
 import { Renderer } from "./gl";
-import { DRAWING_SIZE, type Layer } from "./render";
+import type { Layer } from "./render";
 import { mandalaSvg } from "./svg";
 
 function download(blob: Blob, filename: string) {
@@ -11,18 +11,19 @@ function download(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-export function downloadSvg(layers: Layer[], filename: string) {
-  download(new Blob([mandalaSvg(layers, DRAWING_SIZE)], { type: "image/svg+xml" }), filename);
+/** size is the drawing's width in drawing units, centered on (0, 0). */
+export function downloadSvg(layers: Layer[], size: number, filename: string) {
+  download(new Blob([mandalaSvg(layers, size)], { type: "image/svg+xml" }), filename);
 }
 
-/** Draws the layers with WebGL on a canvas of size × size pixels and saves it as a PNG. */
-export async function downloadPng(layers: Layer[], filename: string, size = 3000) {
+/** Draws the layers, drawingSize drawing units wide, with WebGL on a canvas of size × size pixels and saves it as a PNG. */
+export async function downloadPng(layers: Layer[], drawingSize: number, filename: string, size = 3000) {
   const canvas = document.createElement("canvas");
   canvas.width = size;
   canvas.height = size;
   const renderer = new Renderer(canvas, true);
   try {
-    renderer.draw(layers, DRAWING_SIZE, size);
+    renderer.draw(layers, drawingSize, size);
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
     if (!blob) throw new Error("PNG encoding failed");
     download(blob, filename);

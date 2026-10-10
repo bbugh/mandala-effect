@@ -4,7 +4,7 @@
 import { describe, expect, test } from "vitest";
 import { CENTER_LABELS, type CenterName } from "./geometry/centers";
 import { DEFAULT_RING_OPTIONS, MOTIF_NAMES } from "./geometry/motifs";
-import { autoRings, DRAWING_SIZE, type MandalaParams, mandalaLayers, type RingSpec } from "./render";
+import { autoRings, drawingSize, type MandalaParams, mandalaLayers, type RingSpec } from "./render";
 import { mandalaSvg } from "./svg";
 
 /** The design the page shows on load. */
@@ -22,13 +22,20 @@ const base: MandalaParams = {
   borderSpacing: 1,
   smooth: true,
   minDetail: false,
+  frame: "none",
+  gate: "closed",
+  trivalaya: true,
+  frameCount: 16,
+  frameTip: "pointed",
+  frameInnerOutline: 0.6,
+  frameDots: 0,
 };
 
 /** 1 ring of every pattern, with the options that pattern uses turned on. */
 const everyMotif = (options: Partial<RingSpec>): RingSpec[] =>
   MOTIF_NAMES.map((motif) => ({ ...DEFAULT_RING_OPTIONS, motif, count: motif === "cymatics" ? 6 : 16, ...options }));
 
-const drawing = (params: MandalaParams) => mandalaSvg(mandalaLayers(params), DRAWING_SIZE);
+const drawing = (params: MandalaParams) => mandalaSvg(mandalaLayers(params), drawingSize(params));
 
 describe("drawings", () => {
   test("the design shown on page load", async () => {

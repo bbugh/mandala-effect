@@ -475,8 +475,8 @@ function greekKey({ r1, r2, count, offset }: RingContext, out: MotifPens) {
   drawGreekKey(out.main, base, base + h * 0.86, count, offset ? Math.PI / count : 0);
 }
 
-/** Draws the Greek key's meander line from radius base to radius top. */
-function drawGreekKey(pen: Pen, base: number, top: number, count: number, shift = 0) {
+/** Draws the Greek key's meander line from radius base to radius top. The Greek key ring and frame use it. */
+export function drawGreekKey(pen: Pen, base: number, top: number, count: number, shift = 0) {
   const step = TAU / count;
   const unitY = (top - base) / 4;
   const key: [number, number][] = [[0, 0], [0, 4], [3, 4], [3, 1], [1, 1], [1, 0]];

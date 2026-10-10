@@ -227,6 +227,16 @@ button.wide {
   box-shadow: inset 3px 0 0 var(--accent);
 }
 
+/* The Frame section's controls, in a box like the selected ring's. */
+.frame-box {
+  /* No bottom padding: the last label's bottom margin makes the space. */
+  padding: 10px 12px 0;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
 .ring-list .ring-button {
   display: block;
   width: 100%;
@@ -251,6 +261,7 @@ button.wide {
 .ring-item[hidden],
 .ring-editor [hidden],
 label[hidden],
+fieldset[hidden],
 .pair[hidden] {
   display: none;
 }
