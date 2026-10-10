@@ -5,7 +5,7 @@ import { drawLines, zeroContour } from "./contour";
 import { type Pen, type Point as P, polar, polyline } from "./pen";
 import { drawVajras } from "./vajra";
 
-export type MotifName = "lotus" | "scallops" | "flowerBand" | "lattice" | "roseBraid" | "dots" | "cymatics" | "spirograph" | "vajra";
+export type MotifName = "lotus" | "scallops" | "flowerBand" | "lattice" | "roseBraid" | "dots" | "cymatics" | "spirograph" | "vajra" | "greekKey" | "celtic" | "sawtooth" | "vine" | "stars" | "peacock";
 
 export const MOTIF_LABELS: Record<MotifName, string> = {
   lotus: "Lotus petals",
@@ -17,6 +17,12 @@ export const MOTIF_LABELS: Record<MotifName, string> = {
   cymatics: "Cymatics",
   spirograph: "Spirograph",
   vajra: "Vajras",
+  greekKey: "Greek key",
+  celtic: "Celtic knot",
+  sawtooth: "Sawtooth triangles",
+  vine: "Leafy vine",
+  stars: "Stars",
+  peacock: "Peacock feathers",
 };
 
 export const MOTIF_NAMES = Object.keys(MOTIF_LABELS) as MotifName[];
@@ -65,6 +71,10 @@ export interface RingOptions {
   cymaticsM: number;
   /** Spirograph ring interval. */
   interval: IntervalName;
+  /** Celtic knot ring strands. */
+  strands: number;
+  /** Points of each star in the Stars ring. */
+  starPoints: number;
 }
 
 /** The positions of the Inner outlines slider. The first position, 0, turns the inner outlines off. */
@@ -74,7 +84,7 @@ export const DOT_STEPS = [0, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const;
 /** Thickness of the dots' outline as a fraction of the main line thickness. */
 export const DOT_LINE = 0.6;
 
-export const DEFAULT_RING_OPTIONS: RingOptions = { petalTip: "pointed", innerOutline: 0.6, dots: 0, waveDepth: 0.36, cymaticsN: 3, cymaticsM: 5, interval: "fifth" };
+export const DEFAULT_RING_OPTIONS: RingOptions = { petalTip: "pointed", innerOutline: 0.6, dots: 0, waveDepth: 0.36, cymaticsN: 3, cymaticsM: 5, interval: "fifth", strands: 2, starPoints: 5 };
 
 /** The ring options that change each motif's drawing. The page shows only these for a ring. */
 export const MOTIF_OPTIONS: Record<MotifName, readonly (keyof RingOptions)[]> = {
@@ -87,6 +97,12 @@ export const MOTIF_OPTIONS: Record<MotifName, readonly (keyof RingOptions)[]> = 
   cymatics: ["cymaticsN", "cymaticsM"],
   spirograph: ["interval"],
   vajra: [],
+  greekKey: [],
+  celtic: ["strands"],
+  sawtooth: ["innerOutline"],
+  vine: ["innerOutline"],
+  stars: ["starPoints", "innerOutline", "dots"],
+  peacock: ["innerOutline"],
 };
 
 export interface RingStyle extends RingOptions {
@@ -136,6 +152,12 @@ const LEGIBLE_ARC: Record<MotifName, [number, number]> = {
   cymatics: [1.2, 3.2],
   spirograph: [1, 2],
   vajra: [2, 4.5],
+  greekKey: [0.8, 1.6],
+  celtic: [1.8, 3.5],
+  sawtooth: [0.4, 1.5],
+  vine: [1.2, 2.5],
+  stars: [0.8, 1.6],
+  peacock: [0.7, 1.3],
 };
 
 /**
@@ -439,6 +461,307 @@ function vajra({ r1, r2, count, offset }: RingContext, out: MotifPens) {
   drawVajras(out.main, r1, r2, count, offset ? Math.PI / count : 0);
 }
 
+/** Converts a point given as distance along the ring (x) and distance outward from radius base (y) to [radius, angle], for a repeat centered on angle a. */
+const bend = (base: number, a: number, mid: number) => (x: number, y: number): RA => [base + y, a + x / mid];
+
+/**
+ * Greek key: 1 continuous meander line with square turns (Wikipedia, "Meander (art)"). Each repeat is 4 units
+ * wide and 4 units high: up, across, down into a hook, back out under it, and on to the next repeat. The inner
+ * outline and dots settings do not apply.
+ */
+function greekKey({ r1, r2, count, offset }: RingContext, out: MotifPens) {
+  const h = r2 - r1;
+  const base = r1 + h * 0.07;
+  drawGreekKey(out.main, base, base + h * 0.86, count, offset ? Math.PI / count : 0);
+}
+
+/** Draws the Greek key's meander line from radius base to radius top. */
+function drawGreekKey(pen: Pen, base: number, top: number, count: number, shift = 0) {
+  const step = TAU / count;
+  const unitY = (top - base) / 4;
+  const key: [number, number][] = [[0, 0], [0, 4], [3, 4], [3, 1], [1, 1], [1, 0]];
+  const points: RA[] = [];
+  for (let i = 0; i < count; i++) {
+    const a = i * step + shift - step / 2;
+    for (const [x, y] of key) points.push([base + y * unitY, a + (x * step) / 4]);
+  }
+  bentPath(pen, points[0], points.slice(1).map((p) => [p]).concat([[points[0]]]));
+}
+
+/** Steepest slope of the Celtic knot strands where they cross, as radial distance over distance along the ring (design choice). */
+const CELTIC_MAX_SLOPE = 1.4;
+
+/**
+ * Celtic knot band: 2 or more ribbons, each a wave around the ring, that cross over and under each other in turn
+ * (Wikipedia, "Celtic knot"). Each ribbon is drawn as its 2 edges. Where a ribbon passes under another, its
+ * edges stop at the other ribbon's edges, with a small space. The inner outline and dots settings do not apply.
+ */
+function celtic({ r1, r2, count, offset, style }: RingContext, out: MotifPens) {
+  const h = r2 - r1;
+  const mid = (r1 + r2) / 2;
+  const n = style.strands;
+  const shift = offset ? Math.PI / count : 0;
+  // Strands j and k cross where their phases are π/2 ± π(k − j)/n, so the steepest crossing has the phase
+  // difference nearest π. More copies make the waves steeper, so above CELTIC_MAX_SLOPE the waves and ribbons are
+  // made lower in proportion, and the strands keep crossing at a wide angle.
+  const steepest = Math.sin((Math.PI * Math.floor(n / 2)) / n);
+  // Each strand crosses the others 2(n − 1) times in each wave, so with more than 3 strands the ribbons are narrower.
+  const fullWidth = h * 0.065 * Math.min(1, 2 / (n - 1));
+  const fullAmplitude = h * 0.5 - fullWidth * 1.4;
+  // The ring is narrower than its border spacing when h is negative, so the wave height is compared without its sign.
+  const scale = Math.min(1, (CELTIC_MAX_SLOPE * mid) / (Math.abs(fullAmplitude) * count * steepest));
+  const halfWidth = fullWidth * scale;
+  const amplitude = fullAmplitude * scale;
+  const samples = Math.max(720, count * 96);
+  const radius = (k: number, theta: number) => mid + amplitude * Math.sin(count * (theta - shift) + (TAU * k) / n);
+  const center = (k: number, theta: number) => polar(radius(k, theta), theta);
+  // Crossings: where 2 strands have the same radius, found from the sign change of their difference.
+  const crossings: { theta: number; strands: [number, number] }[] = [];
+  for (let j = 0; j < n; j++) {
+    for (let k = j + 1; k < n; k++) {
+      for (let i = 0; i < samples; i++) {
+        const t0 = (i * TAU) / samples;
+        const t1 = ((i + 1) * TAU) / samples;
+        const d0 = radius(j, t0) - radius(k, t0);
+        // The difference at the end of the last interval is read at angle 0, so a crossing at angle 0 is found once.
+        const t1Wrapped = (((i + 1) % samples) * TAU) / samples;
+        const d1 = radius(j, t1Wrapped) - radius(k, t1Wrapped);
+        if (d0 > 0 !== d1 > 0) crossings.push({ theta: t0 + ((t1 - t0) * d0) / (d0 - d1), strands: [j, k] });
+      }
+    }
+  }
+  crossings.sort((p, q) => p.theta - q.theta);
+  // Each strand goes over and under in turn. The first crossing of a strand decides where its sequence starts.
+  const last: (boolean | undefined)[] = Array(n).fill(undefined);
+  /** For each strand, the crossings where it passes under: the angle and the strand above it. */
+  const under: { theta: number; over: number }[][] = Array.from({ length: n }, () => []);
+  for (const { theta, strands } of crossings) {
+    const [j, k] = strands;
+    const jOver = last[j] !== undefined ? !last[j] : last[k] !== undefined ? last[k]! : true;
+    last[j] = jOver;
+    last[k] = !jOver;
+    if (jOver) under[k].push({ theta, over: j });
+    else under[j].push({ theta, over: k });
+  }
+  const angleSigned = (a: number, b: number) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
+  const angleBetween = (a: number, b: number) => Math.abs(angleSigned(a, b));
+  // Angle around a crossing that the strand above can cover, and the points of the strand above in it.
+  const window = (Math.PI / count) * 0.6;
+  const covers = under.map((list) =>
+    list.map(({ theta, over }) => {
+      const points: P[] = [];
+      for (let q = -40; q <= 40; q++) points.push(center(over, theta + (window * q) / 40));
+      return { theta, points };
+    }),
+  );
+  // Each strand's crossings sorted into bins at least `window` wide, so a point checks only its bin and the 2 next to it.
+  const binCount = Math.floor(TAU / window);
+  const binOf = (theta: number) => ((Math.floor((theta / TAU) * binCount) % binCount) + binCount) % binCount;
+  const bins = covers.map((list) => {
+    const strandBins: (typeof list)[] = Array.from({ length: binCount }, () => []);
+    for (const cover of list) strandBins[binOf(cover.theta)].push(cover);
+    return strandBins;
+  });
+  const near = (k: number, theta: number) => {
+    const b = binOf(theta);
+    return [...bins[k][(b + binCount - 1) % binCount], ...bins[k][b], ...bins[k][(b + 1) % binCount]];
+  };
+  const clearance = halfWidth * 1.9;
+  // 2 points at radius r or more and an angle Δ apart are at least 2r·sin(Δ/2) apart, so cover points more than
+  // `reach` in angle from an edge point are farther than the clearance. The factor leaves room for rounding.
+  const rMin = mid - amplitude - halfWidth;
+  const reach = clearance < 2 * rMin ? 2 * Math.asin(clearance / (2 * rMin)) * 1.05 : Math.PI;
+  const step = window / 40;
+  const close = (cover: { theta: number; points: P[] }, p: P) => {
+    const delta = angleSigned(Math.atan2(p[1], p[0]), cover.theta);
+    const first = Math.max(-40, Math.ceil((delta - reach) / step));
+    const lastIndex = Math.min(40, Math.floor((delta + reach) / step));
+    for (let q = first; q <= lastIndex; q++) {
+      const [x, y] = cover.points[q + 40];
+      if (Math.hypot(x - p[0], y - p[1]) < clearance) return true;
+    }
+    return false;
+  };
+  for (let k = 0; k < n; k++) {
+    for (const side of [-1, 1]) {
+      // The edge is offset from the strand's center line along the line's normal.
+      const edge = (theta: number): P => {
+        const d = 1e-4;
+        const [x0, y0] = center(k, theta - d);
+        const [x1, y1] = center(k, theta + d);
+        const length = Math.hypot(x1 - x0, y1 - y0);
+        const [cx, cy] = center(k, theta);
+        return [cx + (side * halfWidth * (y1 - y0)) / length, cy - (side * halfWidth * (x1 - x0)) / length];
+      };
+      const hidden = (theta: number, p: P) =>
+        near(k, theta).some((cover) => angleBetween(theta, cover.theta) < window && close(cover, p));
+      const lines: P[][] = [];
+      let line: P[] = [];
+      for (let i = 0; i <= samples; i++) {
+        const theta = (i * TAU) / samples;
+        const p = edge(theta);
+        if (hidden(theta, p)) {
+          if (line.length > 1) lines.push(line);
+          line = [];
+        } else line.push(p);
+      }
+      if (line.length > 1) lines.push(line);
+      // The first and last pieces meet at angle 0 unless a crossing hides that point, so they are joined into 1 line.
+      if (lines.length > 1 && !hidden(0, edge(0))) lines[0] = [...lines.pop()!, ...lines[0]];
+      if (lines.length === 1 && under[k].length === 0) polyline(out.main, lines[0]);
+      else for (const piece of lines) polyline(out.main, piece, false);
+    }
+  }
+}
+
+/** Sawtooth triangles: 1 zigzag line between the ring's edges, so the triangles point out and in by turns. */
+function sawtooth({ r1, r2, count, offset, style }: RingContext, out: MotifPens) {
+  const h = r2 - r1;
+  const step = TAU / count;
+  const shift = offset ? step / 2 : 0;
+  const zigzag: P[] = [];
+  for (let i = 0; i < count; i++) {
+    const a = i * step + shift;
+    zigzag.push(polar(r1, a), polar(r2, a + step / 2));
+    // The outward triangle has its base on the inner edge and its tip at a + step / 2.
+    const inset = 0.5;
+    const tipOut: RA = [r1 + h * (0.5 + inset / 2), a + step / 2];
+    const baseOut: RA[] = [[r1 + h * (0.5 - inset / 2), a + step / 2 - (step / 2) * inset * 0.75], [r1 + h * (0.5 - inset / 2), a + step / 2 + (step / 2) * inset * 0.75]];
+    if (style.innerOutline && large(style, r1 * (step / 2) * inset)) {
+      polyline(out.detail, [tipOut, ...baseOut].map((p) => polar(...p)));
+      const tipIn: RA = [r1 + h * (0.5 - inset / 2), a];
+      const baseIn: RA[] = [[r1 + h * (0.5 + inset / 2), a - (step / 2) * inset * 0.75], [r1 + h * (0.5 + inset / 2), a + (step / 2) * inset * 0.75]];
+      polyline(out.detail, [tipIn, ...baseIn].map((p) => polar(...p)));
+    }
+  }
+  polyline(out.main, zigzag);
+}
+
+/**
+ * A leaf that grows from base in direction angle (in the plane of x along the ring and y outward), with 2
+ * curved sides that meet at a point. Returns the leaf's tip.
+ */
+function leaf(pen: Pen, at: (x: number, y: number) => RA, base: [number, number], angle: number, length: number) {
+  const [bx, by] = base;
+  const u = [Math.cos(angle), Math.sin(angle)];
+  const v = [-u[1], u[0]];
+  const p = (along: number, side: number) => at(bx + u[0] * along * length + v[0] * side * length, by + u[1] * along * length + v[1] * side * length);
+  bentPath(pen, p(0, 0), [
+    [p(0.3, 0.3), p(0.75, 0.18), p(1, 0)],
+    [p(0.75, -0.18), p(0.3, -0.3), p(0, 0)],
+  ]);
+  return p;
+}
+
+/** Leafy vine: a wavy stem with a leaf on each side of every wave, pointing forward along the stem. */
+function vine({ r1, r2, count, offset, style }: RingContext, out: MotifPens) {
+  const h = r2 - r1;
+  const mid = (r1 + r2) / 2;
+  const step = TAU / count;
+  const shift = offset ? step / 2 : 0;
+  const amplitude = h * 0.2;
+  const samples = Math.max(720, count * 48);
+  const stem: P[] = [];
+  for (let i = 0; i < samples; i++) {
+    const theta = (i * TAU) / samples;
+    stem.push(polar(mid + amplitude * Math.sin(count * (theta - shift)), theta));
+  }
+  polyline(out.main, stem);
+  const length = Math.min(h * 0.42, mid * step * 0.45);
+  for (let i = 0; i < count; i++) {
+    const a = i * step + shift;
+    const at = bend(mid, a, mid);
+    // Where the stem rises through the middle, the leaf points inward; half a wave later, outward.
+    for (const [x, angle] of [[0, -Math.PI / 4], [(mid * step) / 2, Math.PI / 4]] as const) {
+      const p = leaf(out.main, at, [x, 0], angle, length);
+      if (style.innerOutline && large(style, length * 0.6)) polyline(out.detail, [polar(...p(0.1, 0)), polar(...p(0.85, 0))], false);
+    }
+  }
+}
+
+/** The lowest and highest number of strands that the Celtic knot ring offers. */
+export const STRANDS = { min: 2, max: 6 } as const;
+
+/** The lowest and highest number of points that the Stars ring offers. */
+export const STAR_POINTS = { min: 4, max: 12 } as const;
+
+/** Stars: a row of stars with the ring's number of points, each with a point toward the outside. */
+function stars({ r1, r2, count, offset, style }: RingContext, out: MotifPens) {
+  const h = r2 - r1;
+  const mid = (r1 + r2) / 2;
+  const step = TAU / count;
+  const shift = offset ? step / 2 : 0;
+  const n = style.starPoints;
+  // The inner corners' radius as a fraction of the points' radius: the regular pentagram's ratio for 5 points, and
+  // wider for more points so the points do not become thin spikes (design choice).
+  const inner = 0.382 + (n - 5) * 0.03;
+  const size = Math.min(h * 0.46, mid * step * 0.46);
+  const star = (pen: Pen, center: P, facing: number, r: number) => {
+    const points: P[] = [];
+    for (let k = 0; k < 2 * n; k++) {
+      const angle = facing + (k * Math.PI) / n;
+      const rr = k % 2 === 0 ? r : r * inner;
+      points.push([center[0] + rr * Math.cos(angle), center[1] + rr * Math.sin(angle)]);
+    }
+    polyline(pen, points);
+  };
+  for (let i = 0; i < count; i++) {
+    const a = i * step + shift;
+    const center = polar(mid, a);
+    star(out.main, center, a, size);
+    if (style.innerOutline && large(style, size * 0.5 * inner)) star(out.detail, center, a, size * 0.5);
+    if (style.dots) dot(out, style, center, h * 0.04);
+  }
+}
+
+/**
+ * Peacock feathers: an eye with a shaft toward the center, and fine lines (the barbs) that spread from the eye
+ * to the feather's outline. The eye, the barb count, and the proportions are design choices.
+ */
+function peacock({ r1, r2, count, offset, style }: RingContext, out: MotifPens) {
+  const h = r2 - r1;
+  const mid = (r1 + r2) / 2;
+  const step = TAU / count;
+  const shift = offset ? step / 2 : 0;
+  const halfWidth = (mid * step * 0.9) / 2;
+  const halfHeight = (h * 0.92) / 2;
+  const eyeY = halfHeight * 0.25;
+  const ellipse = (at: (x: number, y: number) => RA, cy: number, rx: number, ry: number, pen: Pen) => {
+    const points: P[] = [];
+    for (let k = 0; k < 72; k++) {
+      const t = (k * TAU) / 72;
+      points.push(polar(...at(rx * Math.cos(t), cy + ry * Math.sin(t))));
+    }
+    polyline(pen, points);
+  };
+  for (let i = 0; i < count; i++) {
+    const at = bend(mid, i * step + shift, mid);
+    const eyeX = halfWidth * 0.32;
+    const eyeH = halfHeight * 0.38;
+    ellipse(at, eyeY, eyeX, eyeH, out.main);
+    // The shaft runs from the inner edge to the bottom of the eye.
+    polyline(out.main, [polar(...at(0, -halfHeight)), polar(...at(0, eyeY - eyeH))], false);
+    // The feather's outline: an elliptic arc around the eye that narrows to a point on the shaft below the eye.
+    const outlineY = halfHeight * 0.25;
+    const outlineX = halfWidth;
+    const outlineH = halfHeight * 0.72;
+    const start = -Math.PI * 0.2;
+    const end = Math.PI * 1.2;
+    const edge = (t: number, inset = 1) => at(outlineX * inset * Math.cos(t), outlineY + outlineH * inset * Math.sin(t));
+    const arc: P[] = [polar(...at(0, -halfHeight * 0.75))];
+    for (let k = 0; k <= 60; k++) arc.push(polar(...edge(start + ((end - start) * k) / 60)));
+    polyline(out.main, arc);
+    // Barbs from just outside the eye to just inside the outline.
+    const barbs = 17;
+    for (let k = 0; k < barbs; k++) {
+      const t = start + ((end - start) * (k + 0.5)) / barbs;
+      const from = at(eyeX * 1.25 * Math.cos(t), eyeY + eyeH * 1.25 * Math.sin(t));
+      polyline(out.main, [polar(...from), polar(...edge(t, 0.93))], false);
+    }
+    if (style.innerOutline && large(style, eyeX * 0.5)) ellipse(at, eyeY, eyeX * 0.5, eyeH * 0.5, out.detail);
+  }
+}
+
 function gcd(a: number, b: number): number {
   return b === 0 ? a : gcd(b, a % b);
 }
@@ -453,4 +776,10 @@ export const MOTIFS: Record<MotifName, (ctx: RingContext, out: MotifPens) => voi
   cymatics,
   spirograph,
   vajra,
+  greekKey,
+  celtic,
+  sawtooth,
+  vine,
+  stars,
+  peacock,
 };

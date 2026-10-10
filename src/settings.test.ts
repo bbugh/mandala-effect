@@ -43,7 +43,7 @@ describe("settings links", () => {
       lineWeight: 4,
       borderThickness: 2,
       rings: Array.from({ length: 8 }, (_, i) => ({
-        motif: i % 2 ? "vajra" : "lotus",
+        motif: i % 2 ? "peacock" : "lotus",
         count: i % 2 ? 200 : 1,
         petalTip: i % 2 ? "round" : "pointed",
         innerOutline: i % 2 ? 0 : 1,
@@ -52,13 +52,15 @@ describe("settings links", () => {
         cymaticsN: i % 2 ? 12 : 1,
         cymaticsM: i % 2 ? 1 : 12,
         interval: i % 2 ? "minorSixth" : "octave",
+        strands: i % 2 ? 6 : 2,
+        starPoints: i % 2 ? 12 : 4,
       })),
       bindu: false,
       borderSpacing: 2,
       minDetail: true,
     };
     const link = settingsToLink(changed, "http://brianbugh.me/mandala-effect/");
-    expect(link.length).toBeLessThan(100);
+    expect(link.length).toBeLessThan(110);
     expect(settingsFromText(link, params)).toEqual(changed);
   });
 
@@ -76,7 +78,7 @@ describe("settings links", () => {
         { motif: "scallops", count: 24 },
         { motif: "lattice", count: 36 },
         { motif: "lotus", count: 48 },
-      ].map((ring) => ({ ...ring, petalTip: "pointed", waveDepth: 0.36, innerOutline, dots, cymaticsN: 3, cymaticsM: 5, interval: "fifth" })),
+      ].map((ring) => ({ ...ring, petalTip: "pointed", waveDepth: 0.36, innerOutline, dots, cymaticsN: 3, cymaticsM: 5, interval: "fifth", strands: 2, starPoints: 5 })),
     });
     expect(settingsFromText(link("1YBqAGxFBuhKmRZAw"), params)).toEqual(opened(0, 0));
     expect(settingsFromText(link("1YBqAGxFFuhKmRZAw"), params)).toEqual(opened(0.6, 0));
@@ -84,7 +86,7 @@ describe("settings links", () => {
   });
 
   test("a version 3 link opens with its shared tips, inner outline, dots, wave depth, and the center's cymatics modes in every ring", () => {
-    const shared = { petalTip: "round", innerOutline: 0, dots: 1, waveDepth: 0.2, cymaticsN: 7, cymaticsM: 2, interval: "fifth" } as const;
+    const shared = { petalTip: "round", innerOutline: 0, dots: 1, waveDepth: 0.2, cymaticsN: 7, cymaticsM: 2, interval: "fifth", strands: 2, starPoints: 5 } as const;
     // Version 3 layout: the same fields as version 4, with the shared ring options after the border thickness, and 8 bits per ring count.
     const bits: number[] = [];
     const write = (value: number, count: number) => {

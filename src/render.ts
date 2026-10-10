@@ -1,5 +1,5 @@
 import { type CenterName, type CenterOptions, drawCenter } from "./geometry/centers";
-import { DEFAULT_MOTIFS, DEFAULT_RING_OPTIONS, DOT_LINE, DOT_STEPS, INNER_OUTLINE_STEPS, INTERVAL_NAMES, legibleCounts, minCount, MOTIFS, type MotifName, type RingContext, type RingOptions } from "./geometry/motifs";
+import { DEFAULT_MOTIFS, DEFAULT_RING_OPTIONS, DOT_LINE, DOT_STEPS, INNER_OUTLINE_STEPS, INTERVAL_NAMES, legibleCounts, STAR_POINTS, STRANDS, minCount, MOTIFS, type MotifName, type RingContext, type RingOptions } from "./geometry/motifs";
 import { type Disk, Path } from "./geometry/pen";
 import { ringRadii, type Spacing } from "./geometry/rings";
 import { createRng, pick } from "./rng";
@@ -52,7 +52,7 @@ const CYMATICS_MODES = Array.from({ length: 12 }, (_, k) => k + 1);
 /**
  * Chooses a motif and a legible copy count for each ring from the variation seed.
  * A ring never repeats the motif of the ring directly inside it. With randomOptions, each ring's
- * tips, inner outlines, dots, wave depth, cymatics modes, and spirograph interval are also chosen from the seed; otherwise every ring
+ * tips, inner outlines, dots, wave depth, cymatics modes, spirograph interval, Celtic knot strands, and star points are also chosen from the seed; otherwise every ring
  * uses DEFAULT_RING_OPTIONS.
  */
 export function autoRings(
@@ -71,6 +71,8 @@ export function autoRings(
   const sizeRng = createRng(seed + 0x5bd1e995);
   // A fifth sequence for the spirograph intervals, for the same reason.
   const intervalRng = createRng(seed + 0x2545f491);
+  // A sixth sequence for the Celtic knot strands and star points, for the same reason.
+  const extraRng = createRng(seed + 0x27d4eb2f);
   const radii = ringRadii(RADIUS, count, spacing);
   const rings: RingSpec[] = [];
   for (let i = 0; i < count; i++) {
@@ -85,6 +87,8 @@ export function autoRings(
           cymaticsN: pick(modeRng, CYMATICS_MODES),
           cymaticsM: pick(modeRng, CYMATICS_MODES),
           interval: pick(intervalRng, INTERVAL_NAMES),
+          strands: STRANDS.min + Math.floor(extraRng() * (STRANDS.max - STRANDS.min + 1)),
+          starPoints: STAR_POINTS.min + Math.floor(extraRng() * (STAR_POINTS.max - STAR_POINTS.min + 1)),
         }
       : DEFAULT_RING_OPTIONS;
     rings.push({ motif, count: pick(rng, legibleCounts(motif, radii[i], radii[i + 1])), ...options });
@@ -178,6 +182,8 @@ export function mandalaLayers(params: MandalaParams): Layer[] {
         cymaticsN: spec.cymaticsN,
         cymaticsM: spec.cymaticsM,
         interval: spec.interval,
+        strands: spec.strands,
+        starPoints: spec.starPoints,
         smooth: params.smooth,
         minDetail: params.minDetail,
       },

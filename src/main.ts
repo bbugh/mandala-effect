@@ -12,6 +12,8 @@ import {
   INTERVAL_NAMES,
   INTERVALS,
   type IntervalName,
+  STAR_POINTS,
+  STRANDS,
   type PetalTip,
   type RingOptions,
 } from "./geometry/motifs";
@@ -167,6 +169,22 @@ for (const name of INTERVAL_NAMES) intervalSelect.add(new Option(INTERVALS[name]
 intervalSelect.setAttribute("aria-label", "Interval");
 const intervalLabel = element("label", "interval");
 intervalLabel.append(intervalSelect);
+const strandsInput = element("input");
+strandsInput.type = "range";
+strandsInput.min = String(STRANDS.min);
+strandsInput.max = String(STRANDS.max);
+strandsInput.step = "1";
+const strandsValue = element("output");
+const strandsLabel = element("label", "mode");
+strandsLabel.append("Strands ", strandsValue, strandsInput);
+const starPointsInput = element("input");
+starPointsInput.type = "range";
+starPointsInput.min = String(STAR_POINTS.min);
+starPointsInput.max = String(STAR_POINTS.max);
+starPointsInput.step = "1";
+const starPointsValue = element("output");
+const starPointsLabel = element("label", "mode");
+starPointsLabel.append("Points ", starPointsValue, starPointsInput);
 /** The label around each option's control, hidden when the option does not change the ring's pattern. */
 const optionLabels: Record<keyof RingOptions, HTMLElement> = {
   petalTip: tipField,
@@ -176,9 +194,11 @@ const optionLabels: Record<keyof RingOptions, HTMLElement> = {
   cymaticsN: modeN.label,
   cymaticsM: modeM.label,
   interval: intervalLabel,
+  strands: strandsLabel,
+  starPoints: starPointsLabel,
 };
 const options = element("div", "options");
-options.append(tipField, intervalLabel, innerOutlineSlider.label, dotsSlider.label, waveLabel, modeN.label, modeM.label);
+options.append(tipField, intervalLabel, strandsLabel, starPointsLabel, innerOutlineSlider.label, dotsSlider.label, waveLabel, modeN.label, modeM.label);
 
 editor.append(motifSelect, copies, options);
 ringRows.append(ringList);
@@ -199,6 +219,8 @@ waveInput.addEventListener("input", () => updateRing({ waveDepth: Number(waveInp
 modeN.input.addEventListener("input", () => updateRing({ cymaticsN: Number(modeN.input.value) }));
 modeM.input.addEventListener("input", () => updateRing({ cymaticsM: Number(modeM.input.value) }));
 intervalSelect.addEventListener("change", () => updateRing({ interval: intervalSelect.value as IntervalName }));
+strandsInput.addEventListener("input", () => updateRing({ strands: Number(strandsInput.value) }));
+starPointsInput.addEventListener("input", () => updateRing({ starPoints: Number(starPointsInput.value) }));
 
 function syncRingRows() {
   selected = Math.min(selected, params.rings.length - 1);
@@ -219,6 +241,10 @@ function syncRingRows() {
   countValue.textContent = String(spec.count);
   for (const radio of tipRadios) radio.checked = radio.value === spec.petalTip;
   intervalSelect.value = spec.interval;
+  strandsInput.value = String(spec.strands);
+  strandsValue.textContent = String(spec.strands);
+  starPointsInput.value = String(spec.starPoints);
+  starPointsValue.textContent = String(spec.starPoints);
   innerOutlineSlider.show(spec.innerOutline);
   dotsSlider.show(spec.dots);
   waveInput.value = String(spec.waveDepth);

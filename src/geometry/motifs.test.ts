@@ -47,3 +47,33 @@ describe("vajra ring", () => {
     }
   });
 });
+
+describe("new ring patterns", () => {
+  test("every pattern and setting stays inside the ring", () => {
+    const motifs = ["greekKey", "celtic", "sawtooth", "vine", "stars", "peacock"] as const;
+    for (const motif of motifs) {
+      for (const count of [6, 18, 40]) {
+        for (const settings of [
+          { strands: 2, starPoints: 4 },
+          { strands: 6, starPoints: 12 },
+        ] as const) {
+          const radii: number[] = [];
+          const ring: RingContext = {
+            r1: 300,
+            r2: 380,
+            count,
+            offset: count === 18,
+            clip: [300, 380],
+            style: { ...DEFAULT_RING_OPTIONS, ...settings, innerOutline: 1, dots: 2, smooth: false, minDetail: false },
+          };
+          // Circles add their nearest and farthest points from the center.
+          const pen = { ...radiusPen(radii), circle: (x: number, y: number, r: number) => radii.push(Math.hypot(x, y) - r, Math.hypot(x, y) + r) };
+          MOTIFS[motif](ring, { main: pen, detail: pen, dots: pen });
+          expect(radii.length, motif).toBeGreaterThan(0);
+          expect(Math.min(...radii), `${motif} ${count}`).toBeGreaterThanOrEqual(300 - 1e-9);
+          expect(Math.max(...radii), `${motif} ${count}`).toBeLessThanOrEqual(380 + 1e-9);
+        }
+      }
+    }
+  });
+});
