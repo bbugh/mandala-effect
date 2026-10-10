@@ -27,3 +27,23 @@ describe("spirograph ring", () => {
     }
   });
 });
+
+describe("vajra ring", () => {
+  test("draws vajras that stay inside the ring", () => {
+    for (const count of [4, 24, 60]) {
+      const radii: number[] = [];
+      const ring: RingContext = {
+        r1: 300,
+        r2: 340,
+        count,
+        offset: true,
+        clip: [300, 340],
+        style: { ...DEFAULT_RING_OPTIONS, smooth: false, minDetail: false },
+      };
+      MOTIFS.vajra(ring, { main: radiusPen(radii), detail: new Path(), dots: new Path() });
+      expect(radii.length).toBeGreaterThan(0);
+      expect(Math.min(...radii)).toBeGreaterThanOrEqual(300 - 1e-9);
+      expect(Math.max(...radii)).toBeLessThanOrEqual(340 + 1e-9);
+    }
+  });
+});

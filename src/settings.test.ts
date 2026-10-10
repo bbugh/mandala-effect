@@ -43,7 +43,7 @@ describe("settings links", () => {
       lineWeight: 4,
       borderThickness: 2,
       rings: Array.from({ length: 8 }, (_, i) => ({
-        motif: i % 2 ? "spirograph" : "lotus",
+        motif: i % 2 ? "vajra" : "lotus",
         count: i % 2 ? 200 : 1,
         petalTip: i % 2 ? "round" : "pointed",
         innerOutline: i % 2 ? 0 : 1,

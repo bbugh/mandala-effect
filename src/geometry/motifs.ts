@@ -3,8 +3,9 @@
 
 import { drawLines, zeroContour } from "./contour";
 import { type Pen, type Point as P, polar, polyline } from "./pen";
+import { drawVajras } from "./vajra";
 
-export type MotifName = "lotus" | "scallops" | "flowerBand" | "lattice" | "roseBraid" | "dots" | "cymatics" | "spirograph";
+export type MotifName = "lotus" | "scallops" | "flowerBand" | "lattice" | "roseBraid" | "dots" | "cymatics" | "spirograph" | "vajra";
 
 export const MOTIF_LABELS: Record<MotifName, string> = {
   lotus: "Lotus petals",
@@ -15,6 +16,7 @@ export const MOTIF_LABELS: Record<MotifName, string> = {
   dots: "Dots",
   cymatics: "Cymatics",
   spirograph: "Spirograph",
+  vajra: "Vajras",
 };
 
 export const MOTIF_NAMES = Object.keys(MOTIF_LABELS) as MotifName[];
@@ -84,6 +86,7 @@ export const MOTIF_OPTIONS: Record<MotifName, readonly (keyof RingOptions)[]> = 
   dots: ["dots"],
   cymatics: ["cymaticsN", "cymaticsM"],
   spirograph: ["interval"],
+  vajra: [],
 };
 
 export interface RingStyle extends RingOptions {
@@ -132,6 +135,7 @@ const LEGIBLE_ARC: Record<MotifName, [number, number]> = {
   dots: [0.5, 1.5],
   cymatics: [1.2, 3.2],
   spirograph: [1, 2],
+  vajra: [2, 4.5],
 };
 
 /**
@@ -426,6 +430,15 @@ function spirograph({ r1, r2, count, offset, style }: RingContext, out: MotifPen
   for (let i = 0; i < count; i++) curve(i * step + shift);
 }
 
+/**
+ * Vajras laid end to end along the ring with a line between each vajra and the next, as in the vajra circle of
+ * Tibetan mandalas. drawVajras describes the vajras. The ring has 1 vajra for each repeat. The inner outline and
+ * dots settings do not apply.
+ */
+function vajra({ r1, r2, count, offset }: RingContext, out: MotifPens) {
+  drawVajras(out.main, r1, r2, count, offset ? Math.PI / count : 0);
+}
+
 function gcd(a: number, b: number): number {
   return b === 0 ? a : gcd(b, a % b);
 }
@@ -439,4 +452,5 @@ export const MOTIFS: Record<MotifName, (ctx: RingContext, out: MotifPens) => voi
   dots,
   cymatics,
   spirograph,
+  vajra,
 };

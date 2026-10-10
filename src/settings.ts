@@ -15,7 +15,7 @@ const BASE64URL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012345678
 export const MAX_SEED = 99999;
 
 const CENTERS: CenterName[] = ["flowerOfLife", "seedOfLife", "phyllotaxis", "sriYantra", "chladni", "cymatics", "metatron"];
-const MOTIFS: MotifName[] = ["lotus", "scallops", "flowerBand", "lattice", "roseBraid", "dots", "cymatics", "spirograph"];
+const MOTIFS: MotifName[] = ["lotus", "scallops", "flowerBand", "lattice", "roseBraid", "dots", "cymatics", "spirograph", "vajra"];
 
 /** Each field of a code version, in order: how to turn the value into a whole number, and how many bits it uses. */
 interface Field {
@@ -152,6 +152,9 @@ const INTERVAL_FIELD: RingField = {
   set: (r, v) => (r.interval = INTERVAL_NAMES[v]),
 };
 
+/** Bits of each ring's pattern. Version 7 has more than 8 patterns. */
+const motifBits = (version: string) => (version === "7" ? 4 : 3);
+
 const RING_FIELDS: Record<string, RingField[]> = {
   "1": [MULTIPLIER],
   "2": [MULTIPLIER],
@@ -202,7 +205,7 @@ export function settingsToCode(params: MandalaParams): string {
   // Rings: the number of rings minus 1, then each ring's pattern and ring fields.
   write(params.rings.length - 1, 3);
   for (const ring of params.rings) {
-    write(MOTIFS.indexOf(ring.motif), 3);
+    write(MOTIFS.indexOf(ring.motif), motifBits(CODE_VERSION));
     for (const field of RING_FIELDS[CODE_VERSION]) write(field.get(ring), field.bits);
   }
   while (bits.length % 6 !== 0) bits.push(0);
@@ -239,10 +242,10 @@ function codeToData(text: string): Record<string, unknown> | null {
   const data: Record<string, unknown> = {};
   for (const field of fields) field.set(data, read(field.bits));
   const ringCount = read(3) + 1;
-  const ringBits = 3 + ringFields.reduce((sum, field) => sum + field.bits, 0);
+  const ringBits = motifBits(code[0]) + ringFields.reduce((sum, field) => sum + field.bits, 0);
   if (position + ringCount * ringBits > bits.length) return null;
   data.rings = Array.from({ length: ringCount }, () => {
-    const ring: Record<string, unknown> = { motif: MOTIFS[read(3)] };
+    const ring: Record<string, unknown> = { motif: MOTIFS[read(motifBits(code[0]))] };
     for (const field of ringFields) field.set(ring, read(field.bits));
     return ring;
   });
