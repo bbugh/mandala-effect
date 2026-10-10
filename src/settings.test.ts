@@ -43,7 +43,7 @@ describe("settings links", () => {
       lineWeight: 4,
       borderThickness: 2,
       rings: Array.from({ length: 8 }, (_, i) => ({
-        motif: i % 2 ? "cymatics" : "lotus",
+        motif: i % 2 ? "spirograph" : "lotus",
         count: i % 2 ? 200 : 1,
         petalTip: i % 2 ? "round" : "pointed",
         innerOutline: i % 2 ? 0 : 1,
@@ -51,13 +51,14 @@ describe("settings links", () => {
         waveDepth: i % 2 ? 0.5 : 0.1,
         cymaticsN: i % 2 ? 12 : 1,
         cymaticsM: i % 2 ? 1 : 12,
+        interval: i % 2 ? "minorSixth" : "octave",
       })),
       bindu: false,
       borderSpacing: 2,
       minDetail: true,
     };
     const link = settingsToLink(changed, "http://brianbugh.me/mandala-effect/");
-    expect(link.length).toBeLessThan(90);
+    expect(link.length).toBeLessThan(100);
     expect(settingsFromText(link, params)).toEqual(changed);
   });
 
@@ -75,7 +76,7 @@ describe("settings links", () => {
         { motif: "scallops", count: 24 },
         { motif: "lattice", count: 36 },
         { motif: "lotus", count: 48 },
-      ].map((ring) => ({ ...ring, petalTip: "pointed", waveDepth: 0.36, innerOutline, dots, cymaticsN: 3, cymaticsM: 5 })),
+      ].map((ring) => ({ ...ring, petalTip: "pointed", waveDepth: 0.36, innerOutline, dots, cymaticsN: 3, cymaticsM: 5, interval: "fifth" })),
     });
     expect(settingsFromText(link("1YBqAGxFBuhKmRZAw"), params)).toEqual(opened(0, 0));
     expect(settingsFromText(link("1YBqAGxFFuhKmRZAw"), params)).toEqual(opened(0.6, 0));
@@ -83,7 +84,7 @@ describe("settings links", () => {
   });
 
   test("a version 3 link opens with its shared tips, inner outline, dots, wave depth, and the center's cymatics modes in every ring", () => {
-    const shared = { petalTip: "round", innerOutline: 0, dots: 1, waveDepth: 0.2, cymaticsN: 7, cymaticsM: 2 } as const;
+    const shared = { petalTip: "round", innerOutline: 0, dots: 1, waveDepth: 0.2, cymaticsN: 7, cymaticsM: 2, interval: "fifth" } as const;
     // Version 3 layout: the same fields as version 4, with the shared ring options after the border thickness, and 8 bits per ring count.
     const bits: number[] = [];
     const write = (value: number, count: number) => {
@@ -124,6 +125,29 @@ describe("settings links", () => {
     expect(rings?.map(({ innerOutline, dots }) => [innerOutline, dots])).toEqual([
       [0.4, 0],
       [0, 1],
+    ]);
+  });
+
+  test("a version 6 link opens with the default spirograph interval in every ring", () => {
+    const bits: number[] = [];
+    const write = (value: number, count: number) => {
+      for (let i = count - 1; i >= 0; i--) bits.push((value >> i) & 1);
+    };
+    // Rotations, spacing, center, n, m, seed, line weight, and border thickness 1, then bindu, double borders, and print details.
+    write(12, 5); write(0, 1); write(0, 3); write(3, 4); write(5, 4); write(108, 17); write(4, 4); write(10, 5);
+    write(1, 1); write(1, 1); write(0, 1);
+    // 2 rings: a lotus ring and a cymatics ring, each with 24 copies, pointed tips, inner outline 0.6, dots off, wave depth 0.2, and modes 3 and 5.
+    write(1, 3);
+    write(0, 3); write(23, 8); write(0, 1); write(5, 4); write(0, 3); write(5, 5); write(3, 4); write(5, 4);
+    write(6, 3); write(23, 8); write(0, 1); write(5, 4); write(0, 3); write(5, 5); write(3, 4); write(5, 4);
+    while (bits.length % 6) bits.push(0);
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    let code = "6";
+    for (let i = 0; i < bits.length; i += 6) code += chars[parseInt(bits.slice(i, i + 6).join(""), 2)];
+    const rings = settingsFromText(code, params)?.rings;
+    expect(rings?.map(({ motif, innerOutline, interval }) => [motif, innerOutline, interval])).toEqual([
+      ["lotus", 0.6, "fifth"],
+      ["cymatics", 0.6, "fifth"],
     ]);
   });
 

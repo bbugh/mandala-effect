@@ -1,5 +1,5 @@
 import { type CenterName, type CenterOptions, drawCenter } from "./geometry/centers";
-import { DEFAULT_MOTIFS, DEFAULT_RING_OPTIONS, DOT_LINE, DOT_STEPS, INNER_OUTLINE_STEPS, legibleCounts, minCount, MOTIFS, type MotifName, type RingContext, type RingOptions } from "./geometry/motifs";
+import { DEFAULT_MOTIFS, DEFAULT_RING_OPTIONS, DOT_LINE, DOT_STEPS, INNER_OUTLINE_STEPS, INTERVAL_NAMES, legibleCounts, minCount, MOTIFS, type MotifName, type RingContext, type RingOptions } from "./geometry/motifs";
 import { type Disk, Path } from "./geometry/pen";
 import { ringRadii, type Spacing } from "./geometry/rings";
 import { createRng, pick } from "./rng";
@@ -52,7 +52,7 @@ const CYMATICS_MODES = Array.from({ length: 12 }, (_, k) => k + 1);
 /**
  * Chooses a motif and a legible copy count for each ring from the variation seed.
  * A ring never repeats the motif of the ring directly inside it. With randomOptions, each ring's
- * tips, inner outlines, dots, wave depth, and cymatics modes are also chosen from the seed; otherwise every ring
+ * tips, inner outlines, dots, wave depth, cymatics modes, and spirograph interval are also chosen from the seed; otherwise every ring
  * uses DEFAULT_RING_OPTIONS.
  */
 export function autoRings(
@@ -69,6 +69,8 @@ export function autoRings(
   const modeRng = createRng(seed + 0x7f4a7c15);
   // A fourth sequence for the inner outline and dot sizes, so the other options for a seed stay the same as when they were on or off.
   const sizeRng = createRng(seed + 0x5bd1e995);
+  // A fifth sequence for the spirograph intervals, for the same reason.
+  const intervalRng = createRng(seed + 0x2545f491);
   const radii = ringRadii(RADIUS, count, spacing);
   const rings: RingSpec[] = [];
   for (let i = 0; i < count; i++) {
@@ -82,6 +84,7 @@ export function autoRings(
           waveDepth: pick(optionRng, WAVE_DEPTHS),
           cymaticsN: pick(modeRng, CYMATICS_MODES),
           cymaticsM: pick(modeRng, CYMATICS_MODES),
+          interval: pick(intervalRng, INTERVAL_NAMES),
         }
       : DEFAULT_RING_OPTIONS;
     rings.push({ motif, count: pick(rng, legibleCounts(motif, radii[i], radii[i + 1])), ...options });
@@ -174,6 +177,7 @@ export function mandalaLayers(params: MandalaParams): Layer[] {
         waveDepth: spec.waveDepth,
         cymaticsN: spec.cymaticsN,
         cymaticsM: spec.cymaticsM,
+        interval: spec.interval,
         smooth: params.smooth,
         minDetail: params.minDetail,
       },

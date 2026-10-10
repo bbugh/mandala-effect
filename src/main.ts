@@ -9,6 +9,9 @@ import {
   MOTIF_NAMES,
   MOTIF_OPTIONS,
   type MotifName,
+  INTERVAL_NAMES,
+  INTERVALS,
+  type IntervalName,
   type PetalTip,
   type RingOptions,
 } from "./geometry/motifs";
@@ -159,6 +162,11 @@ function modeSlider(name: string) {
 }
 const modeN = modeSlider("Wave 1");
 const modeM = modeSlider("Wave 2");
+const intervalSelect = element("select");
+for (const name of INTERVAL_NAMES) intervalSelect.add(new Option(INTERVALS[name].label, name));
+intervalSelect.setAttribute("aria-label", "Interval");
+const intervalLabel = element("label", "interval");
+intervalLabel.append(intervalSelect);
 /** The label around each option's control, hidden when the option does not change the ring's pattern. */
 const optionLabels: Record<keyof RingOptions, HTMLElement> = {
   petalTip: tipField,
@@ -167,9 +175,10 @@ const optionLabels: Record<keyof RingOptions, HTMLElement> = {
   waveDepth: waveLabel,
   cymaticsN: modeN.label,
   cymaticsM: modeM.label,
+  interval: intervalLabel,
 };
 const options = element("div", "options");
-options.append(tipField, innerOutlineSlider.label, dotsSlider.label, waveLabel, modeN.label, modeM.label);
+options.append(tipField, intervalLabel, innerOutlineSlider.label, dotsSlider.label, waveLabel, modeN.label, modeM.label);
 
 editor.append(motifSelect, copies, options);
 ringRows.append(ringList);
@@ -189,6 +198,7 @@ dotsSlider.input.addEventListener("input", () => updateRing({ dots: dotsSlider.r
 waveInput.addEventListener("input", () => updateRing({ waveDepth: Number(waveInput.value) }));
 modeN.input.addEventListener("input", () => updateRing({ cymaticsN: Number(modeN.input.value) }));
 modeM.input.addEventListener("input", () => updateRing({ cymaticsM: Number(modeM.input.value) }));
+intervalSelect.addEventListener("change", () => updateRing({ interval: intervalSelect.value as IntervalName }));
 
 function syncRingRows() {
   selected = Math.min(selected, params.rings.length - 1);
@@ -208,6 +218,7 @@ function syncRingRows() {
   countInput.value = String(spec.count);
   countValue.textContent = String(spec.count);
   for (const radio of tipRadios) radio.checked = radio.value === spec.petalTip;
+  intervalSelect.value = spec.interval;
   innerOutlineSlider.show(spec.innerOutline);
   dotsSlider.show(spec.dots);
   waveInput.value = String(spec.waveDepth);

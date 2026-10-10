@@ -1,7 +1,7 @@
 // Settings as a short code in the page link, so a link opens the same mandala.
 
 import { CENTER_LABELS, type CenterName } from "./geometry/centers";
-import { DEFAULT_RING_OPTIONS, DOT_STEPS, INNER_OUTLINE_STEPS, MAX_COUNT, MOTIF_NAMES, type MotifName, type RingOptions } from "./geometry/motifs";
+import { DEFAULT_RING_OPTIONS, DOT_STEPS, INNER_OUTLINE_STEPS, INTERVAL_NAMES, MAX_COUNT, MOTIF_NAMES, type MotifName, type RingOptions } from "./geometry/motifs";
 import { BORDER_SPACING_STEPS, type MandalaParams, type RingSpec } from "./render";
 
 // Short link code: a version character followed by the settings packed into bits and written in
@@ -15,7 +15,7 @@ const BASE64URL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012345678
 export const MAX_SEED = 99999;
 
 const CENTERS: CenterName[] = ["flowerOfLife", "seedOfLife", "phyllotaxis", "sriYantra", "chladni", "cymatics", "metatron"];
-const MOTIFS: MotifName[] = ["lotus", "scallops", "flowerBand", "lattice", "roseBraid", "dots", "cymatics"];
+const MOTIFS: MotifName[] = ["lotus", "scallops", "flowerBand", "lattice", "roseBraid", "dots", "cymatics", "spirograph"];
 
 /** Each field of a code version, in order: how to turn the value into a whole number, and how many bits it uses. */
 interface Field {
@@ -137,22 +137,30 @@ const MODE_FIELDS: RingField[] = [
   { bits: 4, get: (r) => r.cymaticsM, set: (r, v) => (r.cymaticsM = v) },
 ];
 
+const VERSION_6_RING_FIELDS: RingField[] = [
+  COUNT,
+  TIP_FIELD,
+  stepField("innerOutline", INNER_OUTLINE_STEPS, 4),
+  stepField("dots", DOT_STEPS, 3),
+  WAVE_FIELD,
+  ...MODE_FIELDS,
+];
+
+const INTERVAL_FIELD: RingField = {
+  bits: 3,
+  get: (r) => INTERVAL_NAMES.indexOf(r.interval),
+  set: (r, v) => (r.interval = INTERVAL_NAMES[v]),
+};
+
 const RING_FIELDS: Record<string, RingField[]> = {
   "1": [MULTIPLIER],
   "2": [MULTIPLIER],
   "3": [COUNT],
   "4": RING_OPTION_FIELDS,
   "5": [...RING_OPTION_FIELDS, ...MODE_FIELDS],
-  "6": [
-    COUNT,
-    TIP_FIELD,
-    stepField("innerOutline", INNER_OUTLINE_STEPS, 4),
-    stepField("dots", DOT_STEPS, 3),
-    WAVE_FIELD,
-    ...MODE_FIELDS,
-  ],
+  "6": VERSION_6_RING_FIELDS,
+  "7": [...VERSION_6_RING_FIELDS, INTERVAL_FIELD],
 };
-RING_FIELDS["7"] = RING_FIELDS["6"];
 
 /** Converts rings stored with a multiplier (versions 1 and 2, and older settings text) into copy counts. */
 function ringsFromMultipliers(rings: Record<string, unknown>[], symmetry: number): Record<string, unknown>[] {
@@ -252,6 +260,7 @@ const OPTION_CHECKS: { [K in keyof RingOptions]: (value: unknown) => boolean } =
   waveDepth: number,
   cymaticsN: (value) => Number.isInteger(value) && (value as number) >= 1 && (value as number) <= 12,
   cymaticsM: (value) => Number.isInteger(value) && (value as number) >= 1 && (value as number) <= 12,
+  interval: oneOf(INTERVAL_NAMES),
 };
 
 const CHECKS: { [K in keyof MandalaParams]: (value: unknown) => boolean } = {

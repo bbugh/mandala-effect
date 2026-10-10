@@ -4,7 +4,7 @@
 import { drawLines, zeroContour } from "./contour";
 import { type Pen, type Point as P, polar, polyline } from "./pen";
 
-export type MotifName = "lotus" | "scallops" | "flowerBand" | "lattice" | "roseBraid" | "dots" | "cymatics";
+export type MotifName = "lotus" | "scallops" | "flowerBand" | "lattice" | "roseBraid" | "dots" | "cymatics" | "spirograph";
 
 export const MOTIF_LABELS: Record<MotifName, string> = {
   lotus: "Lotus petals",
@@ -14,6 +14,7 @@ export const MOTIF_LABELS: Record<MotifName, string> = {
   roseBraid: "Rose curve braid",
   dots: "Dots",
   cymatics: "Cymatics",
+  spirograph: "Spirograph",
 };
 
 export const MOTIF_NAMES = Object.keys(MOTIF_LABELS) as MotifName[];
@@ -26,6 +27,24 @@ export const MOTIF_NAMES = Object.keys(MOTIF_LABELS) as MotifName[];
 export const DEFAULT_MOTIFS: readonly MotifName[] = ["lotus", "scallops", "lattice", "dots"];
 
 export type PetalTip = "pointed" | "round";
+
+/**
+ * Musical intervals as frequency ratios in just intonation, larger number first. A spirograph ring uses the
+ * interval's ratio as the ratio of the fixed circle's radius to the rolling circle's radius.
+ */
+export const INTERVALS = {
+  octave: { label: "Octave 2:1", ratio: [2, 1] },
+  fifth: { label: "Fifth 3:2", ratio: [3, 2] },
+  fourth: { label: "Fourth 4:3", ratio: [4, 3] },
+  majorThird: { label: "Major third 5:4", ratio: [5, 4] },
+  minorThird: { label: "Minor third 6:5", ratio: [6, 5] },
+  majorSixth: { label: "Major sixth 5:3", ratio: [5, 3] },
+  minorSixth: { label: "Minor sixth 8:5", ratio: [8, 5] },
+} as const;
+
+export type IntervalName = keyof typeof INTERVALS;
+
+export const INTERVAL_NAMES = Object.keys(INTERVALS) as IntervalName[];
 
 /** Settings that each ring has for itself. */
 export interface RingOptions {
@@ -42,6 +61,8 @@ export interface RingOptions {
   /** Cymatics ring modes n and m, 1 to 12. */
   cymaticsN: number;
   cymaticsM: number;
+  /** Spirograph ring interval. */
+  interval: IntervalName;
 }
 
 /** The positions of the Inner outlines slider. The first position, 0, turns the inner outlines off. */
@@ -51,7 +72,7 @@ export const DOT_STEPS = [0, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const;
 /** Thickness of the dots' outline as a fraction of the main line thickness. */
 export const DOT_LINE = 0.6;
 
-export const DEFAULT_RING_OPTIONS: RingOptions = { petalTip: "pointed", innerOutline: 0.6, dots: 0, waveDepth: 0.36, cymaticsN: 3, cymaticsM: 5 };
+export const DEFAULT_RING_OPTIONS: RingOptions = { petalTip: "pointed", innerOutline: 0.6, dots: 0, waveDepth: 0.36, cymaticsN: 3, cymaticsM: 5, interval: "fifth" };
 
 /** The ring options that change each motif's drawing. The page shows only these for a ring. */
 export const MOTIF_OPTIONS: Record<MotifName, readonly (keyof RingOptions)[]> = {
@@ -62,6 +83,7 @@ export const MOTIF_OPTIONS: Record<MotifName, readonly (keyof RingOptions)[]> = 
   roseBraid: ["waveDepth", "innerOutline", "dots"],
   dots: ["dots"],
   cymatics: ["cymaticsN", "cymaticsM"],
+  spirograph: ["interval"],
 };
 
 export interface RingStyle extends RingOptions {
@@ -109,6 +131,7 @@ const LEGIBLE_ARC: Record<MotifName, [number, number]> = {
   roseBraid: [0.8, 2.5],
   dots: [0.5, 1.5],
   cymatics: [1.2, 3.2],
+  spirograph: [1, 2],
 };
 
 /**
@@ -366,6 +389,47 @@ function cymatics({ count, offset, clip, style }: RingContext, out: MotifPens) {
   drawLines(out.main, lines, smooth);
 }
 
+/**
+ * Hypotrochoid: the path of a pen inside a circle of radius r that rolls inside a fixed circle of radius R
+ * (Wikipedia, "Hypotrochoid"):
+ * x = (R − r)·cos t + d·cos((R − r)/r · t), y = (R − r)·sin t − d·sin((R − r)/r · t).
+ * R:r is the ring's musical interval. The curve closes after the rolling circle turns r/gcd(R, r) times
+ * around the fixed circle and has R/gcd(R, r) loops. The pen distance d = 0.8·r is a design choice:
+ * at d = r the loops become sharp points. Each repeat of the ring has 1 curve, scaled to the ring's width.
+ * The inner outline and dots settings do not apply.
+ */
+function spirograph({ r1, r2, count, offset, style }: RingContext, out: MotifPens) {
+  const h = r2 - r1;
+  const mid = (r1 + r2) / 2;
+  const step = TAU / count;
+  const shift = offset ? step / 2 : 0;
+  const [R, r] = INTERVALS[style.interval].ratio;
+  const d = 0.8 * r;
+  // Largest distance of the pen from the curve's center, so the curve fills half the ring width.
+  const scale = (h / 2) * 0.92 / (R - r + d);
+  const turns = r / gcd(R, r);
+  const samples = 120 * turns;
+  const curve = (a: number) => {
+    const [cx, cy] = polar(mid, a);
+    // The curve is turned with its repeat, so each copy points the same way relative to the center.
+    const cos = Math.cos(a);
+    const sin = Math.sin(a);
+    const points: P[] = [];
+    for (let i = 0; i < samples; i++) {
+      const t = (i * TAU * turns) / samples;
+      const x = ((R - r) * Math.cos(t) + d * Math.cos(((R - r) / r) * t)) * scale;
+      const y = ((R - r) * Math.sin(t) - d * Math.sin(((R - r) / r) * t)) * scale;
+      points.push([cx + x * cos - y * sin, cy + x * sin + y * cos]);
+    }
+    polyline(out.main, points);
+  };
+  for (let i = 0; i < count; i++) curve(i * step + shift);
+}
+
+function gcd(a: number, b: number): number {
+  return b === 0 ? a : gcd(b, a % b);
+}
+
 export const MOTIFS: Record<MotifName, (ctx: RingContext, out: MotifPens) => void> = {
   lotus,
   scallops,
@@ -374,4 +438,5 @@ export const MOTIFS: Record<MotifName, (ctx: RingContext, out: MotifPens) => voi
   roseBraid,
   dots,
   cymatics,
+  spirograph,
 };

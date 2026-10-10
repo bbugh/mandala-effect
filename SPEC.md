@@ -18,10 +18,10 @@ A web page that generates black-and-white line-art mandalas from exact geometry.
    - **Seed of Life / Flower of Life:** overlapping circles on a hexagonal grid.
    - **Phyllotaxis:** a sunflower seed head, dots placed at the golden angle (137.508°), with a Fibonacci number of dots.
    - **Metatron's Cube:** the 13 circles of the Fruit of Life (1 in the middle, then 6 and 6 more in the same 6 directions, each circle touching its neighbors in that direction), with a straight line from every circle's center to every other circle's center. A corner points up. The outer circles touch the edge of the center medallion.
-4. **Ring motifs.** A hidden variation seed picks a motif, a copy count, and the ring options for each ring. In the controls panel, each ring has its own motif menu, a Spokes slider (1 to 200), and its own ring options. A ring shows only the options that change its motif: lotus petals and arches have tips (Pointed and Round radio buttons), inner outlines, and dots; the diamond lattice has inner outlines and dots; the rose braid has wave depth, inner outlines, and dots; the dots ring has dots; the cymatics ring has its own Wave 1 and Wave 2 sliders (the plate's mode numbers n and m, 1 to 12, separate from the center's); the Flower of Life band has none.
+4. **Ring motifs.** A hidden variation seed picks a motif, a copy count, and the ring options for each ring. In the controls panel, each ring has its own motif menu, a Spokes slider (1 to 200), and its own ring options. A ring shows only the options that change its motif: lotus petals and arches have tips (Pointed and Round radio buttons), inner outlines, and dots; the diamond lattice has inner outlines and dots; the rose braid has wave depth, inner outlines, and dots; the dots ring has dots; the cymatics ring has its own Wave 1 and Wave 2 sliders (the plate's mode numbers n and m, 1 to 12, separate from the center's); the spirograph has a musical interval menu; the Flower of Life band has none.
    - Inner outlines slider: Off, then 0.2 to 1 in steps of 0.1, the inner outline width as a multiple of the line weight.
    - Dots slider: Off, then 0.5, 0.75, 1, 1.25, 1.5, 1.75, and 2, the dot size as a multiple of the standard size. Dot outlines are 0.6 × the line weight.
-   - On page load every ring uses pointed tips, inner outlines 0.6, dots Off, wave depth 0.36, and Wave 1 = 3 and Wave 2 = 5.
+   - On page load every ring uses pointed tips, inner outlines 0.6, dots Off, wave depth 0.36, Wave 1 = 3 and Wave 2 = 5, and the fifth.
 
    Motifs:
    - Lotus petals: each petal's base starts at the inner border line
@@ -31,6 +31,7 @@ A web page that generates black-and-white line-art mandalas from exact geometry.
    - Rose curve braid (`r = r₀ + a·cos(kθ)` and its phase-shifted copy). Its dots are in the middle of each opening between the 2 curves.
    - Dot ring
    - Cymatics ring: the Chladni plate equation with free edges, drawn across the ring width and around the ring, using the ring's own Wave 1 and Wave 2 values, spanning the ring between the border lines and masked there
+   - Spirograph: 1 hypotrochoid for each copy, the path of a pen inside a circle of radius r that rolls inside a fixed circle of radius R (Wikipedia, "Hypotrochoid"). R:r is the ring's musical interval in just intonation: octave 2:1, fifth 3:2, fourth 4:3, major third 5:4, minor third 6:5, major sixth 5:3, or minor sixth 8:5. The curve has R/gcd(R, r) loops. The pen distance 0.8·r is a design choice.
 
 ### Output
 
@@ -47,7 +48,7 @@ A web page that generates black-and-white line-art mandalas from exact geometry.
    - Center Shuffle picks a center design different from the current one, and random values only for the settings that design uses.
    - Rings Shuffle picks the number of rings, and a new variation seed, which picks every ring's motif, count, and options. Each ring's inner outlines and dots are Off half of the time.
 6. Copy counts: each ring's count can be any number from 1 to 200, and the page never changes a chosen count. Rings Shuffle, Shuffle everything, and added rings pick counts within each pattern's legibility range. 200 is above the highest legible count in any ring, about 186 (Flower of Life band in the narrowest of 8 golden-ratio rings).
-7. Settings: "Share", next to the page title, puts a link to the current design on the clipboard. The link ends in a short code: a version character, then every setting packed into bits and written in URL-safe base64 (`src/settings.ts`). Opening the link shows the page with those settings. The address bar always shows the link to the current design. Each finished change (releasing a slider, choosing from a menu, changing a checkbox, or clicking a button) adds 1 browser history entry, and changes while a slider moves replace that entry, so Back returns to the design before each finished change. A new code layout gets a new version character, and the page keeps reading earlier versions; the current version is 7. Links from before version 6 open with inner outlines that were on at the slider position nearest 1 − 0.4 × border thickness, and dots that were on at 1. Links from before version 7 open with double borders on at border spacing 1. The variation seed is limited to 0 to 99999 so that it fits in the code.
+7. Settings: "Share", next to the page title, puts a link to the current design on the clipboard. The link ends in a short code: a version character, then every setting packed into bits and written in URL-safe base64 (`src/settings.ts`). Opening the link shows the page with those settings. The address bar always shows the link to the current design. Each finished change (releasing a slider, choosing from a menu, changing a checkbox, or clicking a button) adds 1 browser history entry, and changes while a slider moves replace that entry, so Back returns to the design before each finished change. A new code layout gets a new version character, and the page keeps reading earlier versions; the current version is 7. Links from before version 6 open with inner outlines that were on at the slider position nearest 1 − 0.4 × border thickness, and dots that were on at 1. Links from before version 7 open with double borders on at border spacing 1, and every ring's interval at the page load value. The variation seed is limited to 0 to 99999 so that it fits in the code.
 8. Export SVG (vector, any print size) and PNG (3000 × 3000 pixels). Both come from the same layers as the page. The file name is `mandala-` followed by the link code.
 
 ### Technology
@@ -61,7 +62,7 @@ The mandala shown on page load has the Flower of Life center, and its rings use 
 Center Shuffle, Rings Shuffle, Shuffle everything, and rings added with the Number of rings slider use every center and every ring pattern, including these:
 
 1. Centers: Seed of Life, sunflower spiral, Sri Yantra (`src/geometry/sriYantra.ts`, built from `docs/vendor/sri-chakra-geometry-ijsr-2023.txt` and tested against its tables), Metatron's Cube, Chladni plate (Paul Bourke's formula, `docs/vendor/paulbourke-chladni.html`), and rotated cymatics (design choice, no source).
-2. Ring patterns: Flower of Life band, rose curve braid, cymatics ring (design choices, no source).
+2. Ring patterns: Flower of Life band, rose curve braid, cymatics ring (design choices, no source), and the ring patterns after them in the Geometry list.
 
 ## Sources
 
